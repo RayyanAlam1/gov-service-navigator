@@ -416,7 +416,15 @@ export function NavigatorApp() {
           </div>
         ) : null}
 
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_15rem]">
+        {/*
+          `grid-cols-1` is load-bearing, not redundant. Tailwind emits
+          `repeat(1, minmax(0, 1fr))`, whereas a bare `grid` leaves the single
+          track sized to its content — and the journey stepper's ten-item flex
+          row has a ~1290px min-content width. Without this the whole page
+          scrolled sideways on a phone, which is the one layout failure this
+          audience cannot work around.
+        */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_15rem]">
           <div className="min-w-0 space-y-6">
             {phase === 'intake' || phase === 'refused' ? (
               <IntakeView
@@ -474,7 +482,7 @@ export function NavigatorApp() {
             ) : null}
           </div>
 
-          <aside className="lg:sticky lg:top-20 lg:self-start">
+          <aside className="min-w-0 lg:sticky lg:top-20 lg:self-start">
             <JourneyStepper current={stage} completed={completedStages} language={language} />
           </aside>
         </div>
