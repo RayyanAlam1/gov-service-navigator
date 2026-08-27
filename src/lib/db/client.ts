@@ -174,10 +174,8 @@ async function createPg(): Promise<Database> {
 
   const pool = new Pool({
     connectionString: cfg.DATABASE_URL,
-    max: cfg.DB_POOL_MAX,
+    ...poolTuning(cfg.DATABASE_URL, cfg.DB_POOL_MAX),
     statement_timeout: cfg.DB_STATEMENT_TIMEOUT_MS,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
     application_name: 'gov-service-navigator',
   });
 
@@ -186,6 +184,60 @@ async function createPg(): Promise<Database> {
   });
 
   return new PgDatabase(pool);
+}
+
+/** True when the process is a short-lived serverless invocation. */
+function isServerless(): boolean {
+  return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
+/**
+ * Connection settings that differ between a long-lived server and a serverless
+ * function, and between a local and a managed database.
+ *
+ * Two things go wrong if this is left at the defaults:
+ *
+ *   * **Connection exhaustion.** Every warm serverless instance holds its own
+ *     pool. Ten connections each against a free-tier database that allows a few
+ *     dozen total means a handful of concurrent instances take the database
+ *     down. Serverless wants a pool of one, plus a pooling proxy in front
+ *     (Neon's `-pooler` host, Supabase's port 6543).
+ *
+ *   * **TLS refusal.** Managed Postgres requires SSL. node-postgres does not
+ *     reliably infer that from `sslmode=` in every version, so it is set
+ *     explicitly for any non-local host.
+ */
+function poolTuning(
+  connectionString: string,
+  configuredMax: number,
+): { max: number; idleTimeoutMillis: number; connectionTimeoutMillis: number; ssl?: { rejectUnauthorized: boolean } } {
+  let host = '';
+  try {
+    host = new URL(connectionString).hostname.toLowerCase();
+  } catch {
+    /* malformed URL: fall through to local defaults and let pg report it */
+  }
+
+  const isLocal =
+    host === 'localhost' || host === '127.0.0.1' || host === '::1' || host === 'db' || host === '';
+
+  const serverless = isServerless();
+
+  return {
+    // One connection per instance under serverless; the platform scales by
+    // adding instances, not by widening a pool.
+    max: serverless ? 1 : configuredMax,
+    // Managed databases idle-timeout aggressively and scale to zero. Holding a
+    // dead socket costs a failed first query on the next request.
+    idleTimeoutMillis: serverless ? 10_000 : 30_000,
+    // A scaled-to-zero database has to cold-start before it can accept a
+    // connection, which takes longer than a warm local one.
+    connectionTimeoutMillis: isLocal ? 10_000 : 20_000,
+    // `rejectUnauthorized: false` accepts the managed provider's certificate
+    // chain, which is what every major host documents. The connection is still
+    // encrypted; what is skipped is CA verification.
+    ...(isLocal ? {} : { ssl: { rejectUnauthorized: false } }),
+  };
 }
 
 async function createPglite(): Promise<Database> {

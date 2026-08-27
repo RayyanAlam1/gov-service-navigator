@@ -47,6 +47,9 @@ so there is no database to install.
 docker compose up --build
 ```
 
+**Deploy it free** — Vercel + Neon, no card required. See
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
 **Check everything is healthy** before a demo:
 
 ```bash
@@ -193,6 +196,9 @@ See [`docs/DATA_PROVENANCE.md`](docs/DATA_PROVENANCE.md).
 | `npm run probe` | Re-derive retrieval thresholds for the current model |
 | `npm run test` | Unit + integration tests (104) |
 | `npm run verify` | Typecheck + tests + evaluation |
+| `npm run db:deploy` | Migrate + seed a remote database |
+| `npm run smoke -- <url>` | Verify a live deployment end to end |
+| `npm run db:unlock` | Clear a stale embedded-database lock |
 
 ---
 
@@ -253,6 +259,7 @@ product whose whole value is *"you can check where this fact came from."*
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | The three layers, the agent pipeline, guardrails, key decisions |
 | [`docs/DATA_PROVENANCE.md`](docs/DATA_PROVENANCE.md) | Verification tiers and how to promote data to verified |
 | [`docs/EVALUATION.md`](docs/EVALUATION.md) | Scenario design, metrics, how to add cases |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Free-tier deployment: Vercel + Neon, step by step |
 | [`docs/DEMO.md`](docs/DEMO.md) | The four-minute demo script |
 | [`docs/CONFIGURATION.md`](docs/CONFIGURATION.md) | Every environment variable and degraded mode |
 

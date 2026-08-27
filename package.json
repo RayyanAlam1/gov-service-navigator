@@ -30,7 +30,9 @@
     "probe": "tsx scripts/probe.ts",
     "db:needs-seed": "tsx scripts/needs-seed.ts",
     "setup": "npm run model:fetch && npm run db:migrate && npm run db:seed && npm run doctor",
-    "db:unlock": "tsx scripts/db-unlock.ts"
+    "db:unlock": "tsx scripts/db-unlock.ts",
+    "smoke": "tsx scripts/smoke.ts",
+    "db:deploy": "tsx scripts/migrate.ts && tsx scripts/seed.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.2.17",
