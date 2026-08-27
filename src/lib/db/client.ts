@@ -198,12 +198,32 @@ async function createPglite(): Promise<Database> {
   // database and never leave state behind between runs.
   const inMemory = cfg.PGLITE_DATA_DIR.trim().toLowerCase() === 'memory';
 
-  const instance = await PGlite.create({
-    ...(inMemory ? {} : { dataDir: cfg.PGLITE_DATA_DIR }),
-    extensions: { vector },
-  });
-
-  return new PgliteDatabase(instance as unknown as PGliteLike);
+  try {
+    const instance = await PGlite.create({
+      ...(inMemory ? {} : { dataDir: cfg.PGLITE_DATA_DIR }),
+      extensions: { vector },
+    });
+    return new PgliteDatabase(instance as unknown as PGliteLike);
+  } catch (err) {
+    // PGlite is single-process: a second process opening the same data
+    // directory aborts inside WASM with "Aborted()", which tells you nothing.
+    // Running `npm run doctor` while `npm run dev` is up hits this every time.
+    if (!inMemory) {
+      throw new Error(
+        `Could not open the embedded database at "${cfg.PGLITE_DATA_DIR}".\n\n` +
+          `PGlite allows one process at a time, so this usually means another\n` +
+          `process — most often \`npm run dev\` — already has it open. Stop that\n` +
+          `process and try again.\n\n` +
+          `If nothing else is running, the lock is stale: a previous process was\n` +
+          `killed before it could release it. Clear it with:\n\n` +
+          `    npm run db:unlock\n\n` +
+          `Or point this command at a throwaway database instead:\n\n` +
+          `    PGLITE_DATA_DIR=memory npm run <command>\n\n` +
+          `Original error: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+    throw err;
+  }
 }
 
 /**

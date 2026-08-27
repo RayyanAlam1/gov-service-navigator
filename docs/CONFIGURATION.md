@@ -40,6 +40,24 @@ DB_DRIVER=pglite npm run dev
 `PGLITE_DATA_DIR=memory` is what the test suite uses — no state on disk, nothing left behind
 between runs.
 
+**One process at a time.** PGlite locks its data directory, so `npm run doctor` while `npm run dev`
+is running will fail. Stop the dev server, or point the command at a throwaway database:
+
+```bash
+PGLITE_DATA_DIR=memory npm run doctor
+```
+
+If a process is killed abruptly it can leave a stale lock, or — if the kill landed mid-write — a
+damaged directory:
+
+```bash
+npm run db:unlock              # clear a stale lock
+npm run db:unlock -- --reset   # recreate the directory, then migrate + seed
+```
+
+Recreating is cheap: the knowledge base is generated from `db/`, so only in-flight demo sessions are
+lost. The error message names both commands when this happens.
+
 The only functional difference is that ANN index creation may be unsupported, in which case vector
 search falls back to a sequential scan. At demo corpus size that is a few milliseconds, and the
 migration runner logs it as a warning rather than failing.
