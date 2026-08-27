@@ -1,0 +1,2 @@
+this document has no structured fields at all
+just some free text that the extractor cannot parse

@@ -1,0 +1,8 @@
+# Synthetic demo document — not a real B-Form. Deliberately expired.
+Type: b_form
+Registration Number: BF-0000-0000
+Child Name: Test Applicant
+Father Name: Test Parent
+Issued Date: 2010-04-12
+Expiry Date: 2018-04-12
+Union Council: Demo Union Council

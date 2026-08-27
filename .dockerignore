@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.github
+.env
+.env.local
+.pgdata
+.pglite
+eval/report/*.html
+eval/report/*.json
+*.log
+docs/*.png
+README.md

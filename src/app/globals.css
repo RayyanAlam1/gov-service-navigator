@@ -1,0 +1,207 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Palette.
+ *
+ * Contrast on every text/surface pair below meets WCAG AA (4.5:1 for body,
+ * 3:1 for large text and UI boundaries). That is not a nice-to-have here: the
+ * verification badges are the product's core trust signal, and a badge nobody
+ * can read is a badge that does not exist.
+ */
+:root {
+  color-scheme: light;
+
+  --c-canvas: 248 250 249;
+  --c-surface: 255 255 255;
+  --c-surface-raised: 255 255 255;
+  --c-surface-sunken: 241 245 244;
+  --c-border: 226 232 231;
+  --c-border-strong: 203 213 211;
+
+  --c-ink: 15 33 30;          /* 15.8:1 on surface */
+  --c-ink-muted: 71 92 88;    /* 7.4:1  on surface */
+  --c-ink-subtle: 100 122 118;/* 4.9:1  on surface */
+  --c-ink-inverse: 248 250 249;
+
+  --c-accent: 4 108 78;       /* 5.6:1 with white text */
+  --c-accent-hover: 3 88 63;
+  --c-accent-soft: 226 244 237;
+  --c-accent-ink: 3 74 54;    /* on accent-soft */
+
+  --c-verified: 21 128 61;
+  --c-verified-soft: 223 245 230;
+  --c-verified-ink: 20 83 45;
+
+  --c-unverified: 180 83 9;
+  --c-unverified-soft: 254 243 220;
+  --c-unverified-ink: 124 45 18;
+
+  --c-synthetic: 91 79 168;
+  --c-synthetic-soft: 238 235 250;
+  --c-synthetic-ink: 67 56 130;
+
+  --c-danger: 185 28 28;
+  --c-danger-soft: 254 233 233;
+  --c-danger-ink: 136 19 19;
+
+  --c-info: 29 91 154;
+  --c-info-soft: 226 239 251;
+  --c-info-ink: 22 70 120;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --c-canvas: 12 20 19;
+    --c-surface: 20 31 29;
+    --c-surface-raised: 27 40 38;
+    --c-surface-sunken: 15 25 23;
+    --c-border: 43 60 57;
+    --c-border-strong: 62 83 79;
+
+    --c-ink: 233 241 239;
+    --c-ink-muted: 168 187 183;
+    --c-ink-subtle: 137 158 154;
+    --c-ink-inverse: 12 20 19;
+
+    /* Lifted for dark surfaces: the light-mode accent fails contrast here. */
+    --c-accent: 52 179 132;
+    --c-accent-hover: 74 199 152;
+    --c-accent-soft: 22 52 44;
+    --c-accent-ink: 134 221 187;
+
+    --c-verified: 74 199 141;
+    --c-verified-soft: 20 51 37;
+    --c-verified-ink: 147 226 184;
+
+    --c-unverified: 232 163 62;
+    --c-unverified-soft: 58 42 16;
+    --c-unverified-ink: 246 202 137;
+
+    --c-synthetic: 158 146 235;
+    --c-synthetic-soft: 39 34 66;
+    --c-synthetic-ink: 197 189 246;
+
+    --c-danger: 239 118 118;
+    --c-danger-soft: 62 25 25;
+    --c-danger-ink: 250 178 178;
+
+    --c-info: 116 173 236;
+    --c-info-soft: 21 40 61;
+    --c-info-ink: 173 208 245;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-canvas text-ink antialiased;
+    font-size: 1rem;
+    text-rendering: optimizeLegibility;
+  }
+
+  /**
+   * Urdu is set in Naskh, which is far more legible at small sizes on a cheap
+   * screen than Nastaliq, and needs a slightly larger size and looser leading
+   * than Latin to stay comfortable.
+   */
+  [lang='ur'],
+  [dir='rtl'] {
+    @apply font-urdu;
+    font-size: 1.0625em;
+    line-height: 1.9;
+  }
+
+  /* Focus is always visible. Removing it locks out keyboard users entirely. */
+  :focus-visible {
+    @apply outline-none ring-2 ring-accent ring-offset-2 ring-offset-canvas;
+  }
+
+  ::selection {
+    @apply bg-accent-soft text-accent-ink;
+  }
+
+  /* Reserve the scrollbar so a page that grows does not shift horizontally. */
+  html {
+    scrollbar-gutter: stable;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-card border border-border bg-surface shadow-card;
+  }
+
+  .btn {
+    @apply inline-flex min-h-touch items-center justify-center gap-2 rounded-field
+           px-4 py-2.5 text-sm font-medium transition-colors duration-150
+           disabled:cursor-not-allowed disabled:opacity-55;
+  }
+
+  .btn-primary {
+    @apply btn bg-accent text-white hover:bg-accent-hover;
+  }
+
+  .btn-secondary {
+    @apply btn border border-border-strong bg-surface text-ink hover:bg-surface-sunken;
+  }
+
+  .btn-ghost {
+    @apply btn text-ink-muted hover:bg-surface-sunken hover:text-ink;
+  }
+
+  .field {
+    @apply w-full rounded-field border border-border-strong bg-surface px-3.5 py-3
+           text-base text-ink placeholder:text-ink-subtle
+           focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30;
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1
+           text-xs font-medium leading-none;
+  }
+
+  /* Skeletons reserve exact space so nothing reflows when data lands. */
+  .skeleton {
+    @apply animate-pulse-soft rounded bg-surface-sunken;
+  }
+}
+
+/**
+ * Respect the OS setting. Users who set this often do so because motion makes
+ * them ill; overriding it is a real harm, not a style disagreement.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Screen-reader-only text that is still focusable (skip links). */
+.sr-only-focusable:not(:focus):not(:focus-within) {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}

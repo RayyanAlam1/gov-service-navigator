@@ -1,0 +1,7 @@
+# Synthetic demo document — a passport uploaded against a police-report slot.
+Type: previous_passport
+Passport Number: AB#######
+Holder Name: Test Applicant
+Issued Date: 2019-06-01
+Expiry Date: 2029-06-01
+Issuing Authority: Demo Passport Office

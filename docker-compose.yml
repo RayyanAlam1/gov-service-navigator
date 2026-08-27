@@ -1,0 +1,107 @@
+# Government Service AI Navigator — full stack.
+#
+#   docker compose up --build          everything, seeded and ready
+#   docker compose up -d db            just Postgres, for local `npm run dev`
+#   docker compose --profile tools up adminer   database browser on :8080
+#
+# The app boots with no credentials at all. Without an LLM key it runs on the
+# deterministic provider and /api/health says so — government facts are still
+# correct because they never came from a model in the first place.
+
+name: gov-service-navigator
+
+services:
+  db:
+    # pgvector's own image: the extension is present and matched to the server
+    # version, which is one fewer thing to get wrong than installing it into a
+    # stock postgres image.
+    image: pgvector/pgvector:pg16
+    container_name: gsn-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-gsn}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-gsn_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-gsn}
+      # Deterministic collation, so ORDER BY does not differ between a
+      # developer's machine and the demo machine.
+      POSTGRES_INITDB_ARGS: '--locale-provider=icu --icu-locale=en-US --encoding=UTF8'
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      # `pg_isready` returns true before the database accepts real queries;
+      # an actual SELECT is what the app needs, so that is what is tested.
+      test: ['CMD-SHELL', 'psql -U ${POSTGRES_USER:-gsn} -d ${POSTGRES_DB:-gsn} -c "SELECT 1" || exit 1']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gsn-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      APP_ENV: docker
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      PORT: '3000'
+
+      DB_DRIVER: pg
+      DATABASE_URL: postgresql://${POSTGRES_USER:-gsn}:${POSTGRES_PASSWORD:-gsn_dev_password}@db:5432/${POSTGRES_DB:-gsn}
+
+      # Providers are optional. Supply either, both, or neither.
+      LLM_PROVIDER: ${LLM_PROVIDER:-dashscope}
+      LLM_FALLBACK_PROVIDER: ${LLM_FALLBACK_PROVIDER:-groq}
+      DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY:-}
+      DASHSCOPE_API_KEYS: ${DASHSCOPE_API_KEYS:-}
+      DASHSCOPE_BASE_URL: ${DASHSCOPE_BASE_URL:-https://dashscope-intl.aliyuncs.com/compatible-mode/v1}
+      DASHSCOPE_MODEL_PRIMARY: ${DASHSCOPE_MODEL_PRIMARY:-qwen-plus}
+      DASHSCOPE_MODEL_FAST: ${DASHSCOPE_MODEL_FAST:-qwen-turbo}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_API_KEYS: ${GROQ_API_KEYS:-}
+      GROQ_MODEL_PRIMARY: ${GROQ_MODEL_PRIMARY:-llama-3.3-70b-versatile}
+      GROQ_MODEL_FAST: ${GROQ_MODEL_FAST:-llama-3.1-8b-instant}
+
+      # The model is baked into the image; this points at where it lives.
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-local}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-384}
+      TRANSFORMERS_CACHE: /app/data/models
+
+      STRICT_GROUNDING: ${STRICT_GROUNDING:-true}
+    ports:
+      - '${APP_PORT:-3000}:3000'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget -q --spider http://127.0.0.1:3000/api/health?deep=1 || exit 1']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    security_opt:
+      - no-new-privileges:true
+
+  # Optional database browser, for showing a judge that the facts really are
+  # rows. `docker compose --profile tools up adminer`
+  adminer:
+    image: adminer:4
+    container_name: gsn-adminer
+    profiles: ['tools']
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+      ADMINER_DESIGN: dracula
+    ports:
+      - '${ADMINER_PORT:-8080}:8080'
+
+volumes:
+  db-data:
+    driver: local

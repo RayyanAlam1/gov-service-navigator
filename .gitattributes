@@ -1,0 +1,15 @@
+# Normalise line endings in the repository so a Windows checkout and a Linux CI
+# run see identical content — file checksums in the migration runner depend on it.
+* text=auto eol=lf
+
+# Shell scripts must keep LF or they fail inside the container with a
+# "bad interpreter: \r" that is hard to read.
+*.sh text eol=lf
+docker/entrypoint.sh text eol=lf
+
+# Binary
+*.png binary
+*.jpg binary
+*.pdf binary
+*.onnx binary
+package-lock.json -diff
