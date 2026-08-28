@@ -230,12 +230,37 @@ LLM_FALLBACK_PROVIDER    = mock
 
 Then **redeploy** — environment changes never apply to deployments that already exist.
 
-Current Groq production model IDs, which the defaults already use:
+### Check your models before trusting the defaults
 
-| Setting | Default | Role |
-|---|---|---|
-| `GROQ_MODEL_PRIMARY` | `llama-3.3-70b-versatile` | Intent extraction, translation, plan rendering |
-| `GROQ_MODEL_FAST` | `llama-3.1-8b-instant` | Language ID, query expansion, cheap classification |
+```bash
+npm run check:models
+```
+
+**Do not skip this.** Groq model availability varies by account, and the failure is silent
+and expensive. On the account this was deployed with:
+
+| Model | Result |
+|---|---|
+| `llama-3.3-70b-versatile` (the repo default) | **404 — not available to that account** |
+| `openai/gpt-oss-120b` / `-20b` | **Intermittent** — passed once, then `json_validate_failed` |
+| `qwen/qwen3.6-27b` | Fails JSON mode |
+| `qwen/qwen3.8-27b` | Passes 2/2, ~560ms |
+
+Every agent call here is schema-validated JSON. A model that cannot honour
+`response_format: json_object` does **not** degrade gracefully — it falls back on every
+single call, so the app runs entirely on templates while `/api/health` still reports
+`llm live: true`. The only way to see it is the trace panel showing `intent: degraded`.
+
+`check:models` probes each available model twice and requires both to pass, because a
+single lucky pass would have recommended `openai/gpt-oss-20b`, which fails on its second
+call.
+
+Verified working configuration:
+
+```
+GROQ_MODEL_PRIMARY = qwen/qwen3.8-27b
+GROQ_MODEL_FAST    = qwen/qwen3.8-27b
+```
 
 With one key on a free tier, leave `LLM_CACHE_ENABLED=true` (the default). Repeated demo
 questions are then served from the response cache instead of the quota, and a rate limit
