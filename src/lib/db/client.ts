@@ -172,6 +172,8 @@ async function createPg(): Promise<Database> {
   // NUMERIC (1700) -> number, for fee amounts and scores.
   types.setTypeParser(1700, (v: string) => Number.parseFloat(v));
 
+  assertDatabaseUrlConfigured(cfg.DATABASE_URL);
+
   const tuning = poolTuning(cfg.DATABASE_URL, cfg.DB_POOL_MAX);
 
   const pool = new Pool({
@@ -192,6 +194,41 @@ async function createPg(): Promise<Database> {
 /** True when the process is a short-lived serverless invocation. */
 function isServerless(): boolean {
   return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
+/**
+ * Refuse to attempt a connection that cannot possibly succeed.
+ *
+ * `DATABASE_URL` has a localhost default so the project runs out of the box on
+ * a developer's machine. In a serverless container there is no localhost
+ * Postgres, so an unset variable surfaces as `ECONNREFUSED 127.0.0.1:5432` —
+ * which reads like a database outage rather than what it is: a missing
+ * environment variable.
+ *
+ * Naming the actual cause turns a confusing production incident into a
+ * one-line fix.
+ */
+function assertDatabaseUrlConfigured(connectionString: string): void {
+  if (!isServerless()) return;
+
+  let host = '';
+  try {
+    host = new URL(connectionString).hostname.toLowerCase();
+  } catch {
+    return; // malformed: let pg produce its own parse error
+  }
+
+  if (host !== 'localhost' && host !== '127.0.0.1' && host !== '::1') return;
+
+  throw new Error(
+    `DATABASE_URL is not set in this deployment.\n\n` +
+      `The connection string fell back to its localhost default (${host}:5432), ` +
+      `and a serverless container has no local database.\n\n` +
+      `Set DATABASE_URL in your hosting provider's environment variables, then ` +
+      `REDEPLOY — environment changes do not apply to deployments that already ` +
+      `exist. On Vercel: Settings → Environment Variables → add it for ` +
+      `Production → Deployments → Redeploy.`,
+  );
 }
 
 /**
