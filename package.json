@@ -32,7 +32,8 @@
     "setup": "npm run model:fetch && npm run db:migrate && npm run db:seed && npm run doctor",
     "db:unlock": "tsx scripts/db-unlock.ts",
     "smoke": "tsx scripts/smoke.ts",
-    "db:deploy": "tsx scripts/migrate.ts && tsx scripts/seed.ts"
+    "db:deploy": "tsx scripts/migrate.ts && tsx scripts/seed.ts",
+    "check:models": "tsx scripts/check-models.ts"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.2.17",
