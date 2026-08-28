@@ -60,6 +60,21 @@ if (PLACEHOLDER_HOSTS.has(targetHost)) {
   process.exit(1);
 }
 
+// An unsubstituted placeholder — `<your-url>`, `{{url}}`, `YOUR_URL_HERE`.
+// Documentation uses angle brackets to mean "put your value here", and pasting
+// the line verbatim is a completely reasonable thing to do. Say so plainly
+// instead of failing four checks with a URL-parse error.
+if (/[<>{}]|YOUR[_-]?URL|REPLACE[_-]?ME/i.test(target)) {
+  console.error(
+    `\n✖ "${target}" still contains a placeholder.\n\n` +
+      `  Replace the whole thing — angle brackets included — with the URL Vercel\n` +
+      `  gave you after deploying. For example:\n\n` +
+      `      npm run smoke -- https://gov-service-navigator.vercel.app\n\n` +
+      `  If you have not deployed yet, do that first: https://vercel.com/new\n`,
+  );
+  process.exit(1);
+}
+
 if (!/^https?:\/\//i.test(target)) {
   console.error(`\n✖ "${target}" is missing a scheme. Use https://...\n`);
   process.exit(1);
