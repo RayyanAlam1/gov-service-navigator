@@ -172,9 +172,12 @@ async function createPg(): Promise<Database> {
   // NUMERIC (1700) -> number, for fee amounts and scores.
   types.setTypeParser(1700, (v: string) => Number.parseFloat(v));
 
+  const tuning = poolTuning(cfg.DATABASE_URL, cfg.DB_POOL_MAX);
+
   const pool = new Pool({
-    connectionString: cfg.DATABASE_URL,
-    ...poolTuning(cfg.DATABASE_URL, cfg.DB_POOL_MAX),
+    // `sslmode` is stripped when we set `ssl` ourselves — see stripSslMode().
+    connectionString: tuning.ssl ? stripSslMode(cfg.DATABASE_URL) : cfg.DATABASE_URL,
+    ...tuning,
     statement_timeout: cfg.DB_STATEMENT_TIMEOUT_MS,
     application_name: 'gov-service-navigator',
   });
@@ -189,6 +192,34 @@ async function createPg(): Promise<Database> {
 /** True when the process is a short-lived serverless invocation. */
 function isServerless(): boolean {
   return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME);
+}
+
+/**
+ * Remove `sslmode` from a connection string when TLS is configured explicitly.
+ *
+ * Managed providers hand out URLs ending `?sslmode=require`. node-postgres
+ * currently treats `require` as `verify-full`, warns loudly that this will
+ * change to weaker libpq semantics in pg 9, and then ignores it anyway because
+ * an explicit `ssl` option takes precedence.
+ *
+ * So the parameter is doing nothing except printing a deprecation notice on
+ * every command and setting up a silent behaviour change on a future upgrade.
+ * Dropping it makes the TLS configuration single-sourced: it comes from
+ * `poolTuning`, nowhere else.
+ *
+ * Everything else in the query string — `channel_binding`, `options`, and any
+ * provider-specific parameters — is preserved untouched.
+ */
+export function stripSslMode(connectionString: string): string {
+  try {
+    const url = new URL(connectionString);
+    if (!url.searchParams.has('sslmode')) return connectionString;
+    url.searchParams.delete('sslmode');
+    return url.toString();
+  } catch {
+    // Not a parseable URL: hand it back unchanged and let pg report the problem.
+    return connectionString;
+  }
 }
 
 /**
@@ -233,10 +264,12 @@ function poolTuning(
     // A scaled-to-zero database has to cold-start before it can accept a
     // connection, which takes longer than a warm local one.
     connectionTimeoutMillis: isLocal ? 10_000 : 20_000,
-    // `rejectUnauthorized: false` accepts the managed provider's certificate
-    // chain, which is what every major host documents. The connection is still
-    // encrypted; what is skipped is CA verification.
-    ...(isLocal ? {} : { ssl: { rejectUnauthorized: false } }),
+    // TLS is always on for a remote host. Whether the certificate chain is
+    // *verified* is configurable, because providers differ and a refused
+    // connection is a worse failure than an unverified one for an MVP.
+    ...(isLocal
+      ? {}
+      : { ssl: { rejectUnauthorized: getConfig().DB_SSL_REJECT_UNAUTHORIZED } }),
   };
 }
 

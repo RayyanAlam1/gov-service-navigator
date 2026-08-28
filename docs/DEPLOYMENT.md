@@ -53,6 +53,9 @@ Pick 384 instead and adding DashScope later means dropping and rebuilding the wh
    runs out. The app already caps itself to one connection per instance when it detects Vercel, but
    the pooler is the other half of that fix.
 
+   The pooled endpoint works for migrations too — verified against Neon, whose pooler accepts the
+   startup parameters the migration runner sets. You do not need a second connection string.
+
 4. Enable pgvector — one query in the Neon SQL Editor:
 
    ```sql
@@ -100,6 +103,18 @@ takes under a minute.
    MAX_UPLOAD_BYTES        = 4000000
    STRICT_GROUNDING        = true
    ```
+
+   Optional, once you have confirmed the deploy works:
+
+   ```
+   DB_SSL_REJECT_UNAUTHORIZED = true
+   ```
+
+   TLS is always on for a remote database. This additionally **verifies the certificate chain**,
+   which is what protects against an active man-in-the-middle rather than just passive eavesdropping.
+   It defaults to `false` because providers differ and a refused connection is a worse failure than
+   an unverified one — but Neon uses a publicly-trusted certificate, so turning it on should work and
+   is the better posture. Flip it, redeploy, and run the smoke test.
 
    With a DashScope key, add:
 

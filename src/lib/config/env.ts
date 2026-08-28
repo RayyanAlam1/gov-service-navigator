@@ -82,6 +82,16 @@ const EnvSchema = z.object({
   DATABASE_URL: str('postgresql://gsn:gsn_dev_password@localhost:5432/gsn'),
   PGLITE_DATA_DIR: str('.pglite'),
   DB_POOL_MAX: int(10, 1, 100),
+  /**
+   * Verify the database server's TLS certificate chain.
+   *
+   * Defaults to false because managed providers vary in what they present and
+   * a refused connection is a hard outage. The connection is encrypted either
+   * way — what this controls is whether the chain is validated, which is what
+   * protects against an active man-in-the-middle. Turn it on if your provider
+   * uses a publicly-trusted certificate (Neon and Supabase both do).
+   */
+  DB_SSL_REJECT_UNAUTHORIZED: bool(false),
   DB_STATEMENT_TIMEOUT_MS: int(15_000, 1_000, 120_000),
 
   /* ── LLM ────────────────────────────────────────────────────────────── */
