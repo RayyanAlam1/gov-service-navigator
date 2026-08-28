@@ -1,0 +1,104 @@
+name: Database
+
+# Run schema and content operations against the deployed database without a
+# local terminal or a copy of the production credential on anyone's laptop.
+#
+# Deliberately manual (workflow_dispatch), never automatic on push. A migration
+# that runs itself on every deploy is a migration that can take production down
+# at 2am on someone else's commit. Schema changes here are a decision, not a
+# side effect.
+#
+# Requires one repository secret:
+#   DATABASE_URL — the Neon connection string (Settings → Secrets and
+#                  variables → Actions → New repository secret)
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: 'What to run'
+        required: true
+        default: doctor
+        type: choice
+        options:
+          - doctor          # report only; changes nothing
+          - migrate         # apply pending migrations
+          - seed            # upsert the knowledge base
+          - migrate-and-seed
+          - reindex         # re-embed the corpus with the current provider
+      embedding_provider:
+        description: 'Embedding provider (must match what the app uses)'
+        required: true
+        default: local
+        type: choice
+        options: [local, hash, dashscope]
+      embedding_dim:
+        description: 'Vector width (must match the migrated schema)'
+        required: true
+        default: '1024'
+        type: string
+
+jobs:
+  run:
+    name: ${{ inputs.operation }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # Optional: create a GitHub Environment named `production` with required
+    # reviewers to gate destructive operations behind an approval.
+    environment: production
+
+    env:
+      DB_DRIVER: pg
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      EMBEDDING_PROVIDER: ${{ inputs.embedding_provider }}
+      EMBEDDING_DIM: ${{ inputs.embedding_dim }}
+      DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
+      LOG_LEVEL: info
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Check the secret is present
+        run: |
+          if [ -z "${{ secrets.DATABASE_URL }}" ]; then
+            echo "::error::DATABASE_URL secret is not set. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - name: Cache embedding model
+        if: inputs.embedding_provider == 'local'
+        uses: actions/cache@v4
+        with:
+          path: data/models
+          key: embed-model-${{ hashFiles('.env.example') }}
+
+      - name: Fetch embedding model
+        if: inputs.embedding_provider == 'local'
+        run: npm run model:fetch
+
+      - name: Run
+        run: |
+          case "${{ inputs.operation }}" in
+            doctor)           npm run doctor ;;
+            migrate)          npm run db:migrate ;;
+            seed)             npm run db:seed ;;
+            migrate-and-seed) npm run db:deploy ;;
+            reindex)          npm run db:index -- --all ;;
+          esac
+
+      - name: Report state
+        if: always()
+        run: |
+          echo "### Database: ${{ inputs.operation }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          npm run doctor 2>&1 | sed 's/\x1b\[[0-9;]*m//g' >> "$GITHUB_STEP_SUMMARY" || true
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

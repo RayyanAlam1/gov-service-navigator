@@ -1,0 +1,90 @@
+name: Verify deployment
+
+# Vercel deploys on every push to main through its GitHub integration, and
+# reports the result back as a `deployment_status` event. This workflow hooks
+# that event and proves the deployment actually works — rather than trusting
+# that a green build means a working app.
+#
+# It has caught the real failure mode already: a build that succeeds, serves
+# the UI perfectly, and then 500s on every API call because an environment
+# variable was missing. A build check cannot see that. Only a request can.
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Deployment URL to verify (e.g. https://gov-service-navigator.vercel.app)'
+        required: true
+        type: string
+
+jobs:
+  smoke:
+    name: Smoke-test the live deployment
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Only run when a deployment actually succeeded. Vercel also emits
+    # `pending` and `failure`, and preview deployments for every branch.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event.deployment_status.state == 'success'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Resolve target URL
+        id: target
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            URL="${{ inputs.url }}"
+          else
+            URL="${{ github.event.deployment_status.environment_url }}"
+          fi
+
+          if [ -z "$URL" ]; then
+            echo "No deployment URL available; nothing to verify." >&2
+            exit 1
+          fi
+
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Verifying $URL"
+
+      - name: Wait for the deployment to become reachable
+        run: |
+          # A fresh serverless deployment plus a scaled-to-zero database can
+          # take a moment to answer its first request. Poll rather than
+          # failing on a cold start.
+          for attempt in $(seq 1 20); do
+            if curl -fsS --max-time 30 "${{ steps.target.outputs.url }}/api/health" -o /dev/null; then
+              echo "reachable after $attempt attempt(s)"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "never became reachable — continuing so the smoke test reports the real reason" >&2
+
+      - name: Smoke test
+        run: npm run smoke -- "${{ steps.target.outputs.url }}"
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "### Deployment verification"
+            echo ""
+            echo "**URL:** ${{ steps.target.outputs.url }}"
+            echo ""
+            if [ "${{ job.status }}" = "success" ]; then
+              echo "All checks passed — health, Roman-Urdu intake, prompt-injection refusal, and an interview turn."
+            else
+              echo "Verification failed. Check the smoke-test output above; \`/api/health?deep=1\` on the deployment reports the database, schema, embedding width and provider chain in one response."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

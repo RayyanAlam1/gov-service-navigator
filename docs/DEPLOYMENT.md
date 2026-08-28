@@ -168,6 +168,85 @@ is worse than one that is down.
 
 ---
 
+## CI/CD
+
+Three workflows in `.github/workflows/`. Vercel handles the deploy itself through its
+GitHub integration; these cover the parts it does not.
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `ci.yml` | every push and PR | Typecheck, lint, 110 tests, the 51-scenario evaluation, a Next build, and a Docker container smoke test |
+| `verify-deployment.yml` | Vercel reports a successful deploy | Smoke-tests the **live URL** — health, Roman-Urdu intake, prompt-injection refusal, an interview turn |
+| `database.yml` | manual | Migrate, seed, reindex or inspect the deployed database |
+
+### Why verification is a separate workflow
+
+`ci.yml` proves the code is correct. It cannot prove the *deployment* is, and the
+difference is not academic — the first live deploy of this project built cleanly, served
+the UI perfectly, and returned 500 on every API call because one environment variable was
+missing. A build check cannot see that. Only a request to the running app can.
+
+`verify-deployment.yml` hooks GitHub's `deployment_status` event, which Vercel emits when a
+deploy finishes, waits for the app to answer, and then exercises the real pipeline. It can
+also be run manually against any URL from the Actions tab.
+
+### Why migrations are manual
+
+`database.yml` is `workflow_dispatch` only, never automatic on push. A migration that runs
+itself on every deploy is a migration that can take production down on someone else's
+commit. Schema changes here are a decision, not a side effect.
+
+Point it at a `production` GitHub Environment with required reviewers if you want approval
+gating on top.
+
+### Repository secrets
+
+**Settings → Secrets and variables → Actions → New repository secret**
+
+| Secret | Needed by | Notes |
+|---|---|---|
+| `DATABASE_URL` | `database.yml` | The Neon **pooled** string |
+| `DASHSCOPE_API_KEY` | `database.yml`, only for `reindex` with DashScope embeddings | Optional |
+
+`ci.yml` needs **no secrets at all**. It runs on embedded PostgreSQL with the deterministic
+LLM provider, which is precisely the point: every guarantee the evaluation suite measures is
+a property of the deterministic layer, so it holds whether or not a model is reachable.
+
+---
+
+## Using a Groq key
+
+Groq serves **chat only — it has no embeddings endpoint**, so `EMBEDDING_PROVIDER` must stay
+on whatever you indexed the corpus with. Setting it to `groq` is not an option and the
+config will reject it.
+
+In Vercel → Settings → Environment Variables:
+
+```
+LLM_PROVIDER             = groq
+GROQ_API_KEY             = gsk_...
+LLM_FALLBACK_PROVIDER    = mock
+```
+
+Then **redeploy** — environment changes never apply to deployments that already exist.
+
+Current Groq production model IDs, which the defaults already use:
+
+| Setting | Default | Role |
+|---|---|---|
+| `GROQ_MODEL_PRIMARY` | `llama-3.3-70b-versatile` | Intent extraction, translation, plan rendering |
+| `GROQ_MODEL_FAST` | `llama-3.1-8b-instant` | Language ID, query expansion, cheap classification |
+
+With one key on a free tier, leave `LLM_CACHE_ENABLED=true` (the default). Repeated demo
+questions are then served from the response cache instead of the quota, and a rate limit
+degrades to the deterministic provider rather than erroring — `/api/health` shows which
+provider actually served the last request.
+
+If you later get more keys, `GROQ_API_KEYS=gsk_one,gsk_two` pools them with rate-limit-aware
+failover.
+
+---
+
 ## Alternative: container hosting
 
 Use this if you want full-quality local ONNX embeddings, or you would rather run the exact Docker
