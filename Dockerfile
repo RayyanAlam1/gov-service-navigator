@@ -34,6 +34,21 @@ COPY package.json package-lock.json* ./
 RUN npm ci --no-audit --no-fund
 
 
+# ── Stage 1b: production dependencies ───────────────────────────────────────
+# Next's standalone output ships only what its tracer found reachable from the
+# app, and it bundles some packages into the compiled chunks rather than leaving
+# them in node_modules — zod, zod-to-json-schema and pino all disappear that
+# way. The app is fine; the entrypoint is not, because it runs migrate and seed
+# as TypeScript and needs the real packages on disk.
+#
+# Pruning to production deps gives those back with correct transitive trees,
+# and it is small here: eight direct dependencies. It is copied *over* the
+# standalone output rather than instead of it, because COPY merges into an
+# existing directory — so everything Next traced is kept.
+FROM deps AS prod-deps
+RUN npm prune --omit=dev
+
+
 # ── Stage 2: embedding model ────────────────────────────────────────────────
 # Fetched in its own layer so it is cached independently of application code.
 FROM deps AS model
@@ -84,6 +99,7 @@ ENV NODE_ENV=production \
 # Next's standalone output carries only the modules the server actually uses.
 COPY --from=build --chown=gsn:gsn /app/.next/standalone ./
 COPY --from=build --chown=gsn:gsn /app/.next/static ./.next/static
+COPY --from=prod-deps --chown=gsn:gsn /app/node_modules ./node_modules
 COPY --from=build --chown=gsn:gsn /app/public ./public
 
 # Content and tooling needed at runtime: migrations, seeds, the corpus, the
@@ -93,6 +109,11 @@ COPY --from=build --chown=gsn:gsn /app/eval ./eval
 COPY --from=build --chown=gsn:gsn /app/scripts ./scripts
 COPY --from=build --chown=gsn:gsn /app/data ./data
 COPY --from=build --chown=gsn:gsn /app/tsconfig.json ./tsconfig.json
+# The entrypoint runs migrate/seed as TypeScript, and those scripts import
+# through the `@/*` alias, which tsconfig maps to ./src/*. Without the sources
+# tsx resolves the alias to nothing and every migration fails with
+# "Cannot find module '@/lib/config/env'".
+COPY --from=build --chown=gsn:gsn /app/src ./src
 # The entrypoint runs migrations and seeding from TypeScript, so tsx has to
 # exist in the runtime image. Two things make that less obvious than it looks.
 #
