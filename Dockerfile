@@ -93,8 +93,20 @@ COPY --from=build --chown=gsn:gsn /app/eval ./eval
 COPY --from=build --chown=gsn:gsn /app/scripts ./scripts
 COPY --from=build --chown=gsn:gsn /app/data ./data
 COPY --from=build --chown=gsn:gsn /app/tsconfig.json ./tsconfig.json
+# The entrypoint runs migrations and seeding from TypeScript, so tsx has to
+# exist in the runtime image. Two things make that less obvious than it looks.
+#
+# `node_modules/.bin/tsx` is a symlink into `tsx/dist`. COPY dereferences it,
+# writing a real file whose own relative imports then resolve against `.bin/`
+# instead of `tsx/dist/` — the container started, failed every migration with
+# ERR_MODULE_NOT_FOUND, and reported itself unhealthy. The entrypoint therefore
+# calls `tsx/dist/cli.mjs` directly and the shim is not copied at all.
+#
+# tsx also depends on esbuild, which ships a native binary in a per-platform
+# package. Copying tsx alone gets you a second failure one step further on.
 COPY --from=build --chown=gsn:gsn /app/node_modules/tsx ./node_modules/tsx
-COPY --from=build --chown=gsn:gsn /app/node_modules/.bin/tsx ./node_modules/.bin/tsx
+COPY --from=build --chown=gsn:gsn /app/node_modules/esbuild ./node_modules/esbuild
+COPY --from=build --chown=gsn:gsn /app/node_modules/@esbuild ./node_modules/@esbuild
 
 COPY --chown=gsn:gsn docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh

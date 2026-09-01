@@ -45,13 +45,23 @@ jobs:
 
       - run: npm ci --no-audit --no-fund
 
+      # `environment_url` is the per-deployment URL (project-<hash>.vercel.app),
+      # and Vercel's deployment protection covers it even for production builds
+      # — it answers 302 to an auth page, so every check failed on a live,
+      # working deployment. The stable production alias is the public one, and
+      # is what a visitor actually hits, so that is what gets verified.
+      #
+      # Override PRODUCTION_URL below if the project is ever renamed or a custom
+      # domain is added.
       - name: Resolve target URL
         id: target
+        env:
+          PRODUCTION_URL: https://gov-service-navigator.vercel.app
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             URL="${{ inputs.url }}"
           else
-            URL="${{ github.event.deployment_status.environment_url }}"
+            URL="$PRODUCTION_URL"
           fi
 
           if [ -z "$URL" ]; then

@@ -35,14 +35,14 @@ if [ "$DB_DRIVER" = "pg" ]; then
 fi
 
 echo "▸ applying migrations…"
-./node_modules/.bin/tsx scripts/migrate.ts
+node ./node_modules/tsx/dist/cli.mjs scripts/migrate.ts
 
 # Only seed when the knowledge base is genuinely empty.
-NEEDS_SEED=$(./node_modules/.bin/tsx scripts/needs-seed.ts 2>/dev/null | tail -n 1)
+NEEDS_SEED=$(node ./node_modules/tsx/dist/cli.mjs scripts/needs-seed.ts 2>/dev/null | tail -n 1)
 
 if [ "$NEEDS_SEED" = "yes" ]; then
   echo "▸ seeding knowledge base…"
-  ./node_modules/.bin/tsx scripts/seed.ts
+  node ./node_modules/tsx/dist/cli.mjs scripts/seed.ts
 else
   echo "▸ knowledge base already populated; skipping seed"
 fi
