@@ -85,6 +85,7 @@ const config: Config = {
 
       fontFamily: {
         sans: ['var(--font-latin)', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'Iowan Old Style', 'Georgia', 'serif'],
         urdu: ['var(--font-urdu)', 'Noto Naskh Arabic', 'serif'],
         mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
       },

@@ -75,6 +75,21 @@ export const UI = {
   sources: t('Sources', 'ذرائع', 'Zaraye'),
   step: t('Step', 'مرحلہ', 'Marhala'),
   notVerified: t('not verified', 'تصدیق شدہ نہیں', 'tasdeeq shuda nahi'),
+
+  /* Caveats are collapsed behind one line. Every one is still shown on
+     request, but a column of identical warnings above the plan reads as a
+     broken app rather than an honest one — and buries the answer the person
+     actually came for. */
+  caveatsOne: t(
+    '1 detail we could not verify — confirm at the counter',
+    '1 تفصیل کی تصدیق نہیں ہو سکی — کاؤنٹر پر تصدیق کریں',
+    '1 tafseel verify nahi ho saki — counter par tasdeeq karein',
+  ),
+  caveatsMany: t(
+    '{count} details we could not verify — confirm at the counter',
+    '{count} تفصیلات کی تصدیق نہیں ہو سکی — کاؤنٹر پر تصدیق کریں',
+    '{count} tafseelat verify nahi ho sakin — counter par tasdeeq karein',
+  ),
   confirmAtOffice: t(
     'Confirm the current amount at the office.',
     'موجودہ رقم دفتر سے تصدیق کریں۔',

@@ -116,11 +116,28 @@
    * screen than Nastaliq, and needs a slightly larger size and looser leading
    * than Latin to stay comfortable.
    */
+  /**
+   * Display type. Wrapped in :where() so it carries zero specificity and the
+   * Urdu rule below always wins — a Latin serif applied to Urdu headings would
+   * silently fall back to a system face and break the script.
+   */
+  :where(h1, h2) {
+    @apply font-display;
+    letter-spacing: -0.011em;
+    text-wrap: balance;
+  }
+
   [lang='ur'],
   [dir='rtl'] {
     @apply font-urdu;
     font-size: 1.0625em;
     line-height: 1.9;
+  }
+
+  [lang='ur'] :where(h1, h2),
+  [dir='rtl'] :where(h1, h2) {
+    @apply font-urdu;
+    letter-spacing: normal;
   }
 
   /* Focus is always visible. Removing it locks out keyboard users entirely. */

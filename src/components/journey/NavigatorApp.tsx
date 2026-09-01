@@ -772,17 +772,30 @@ function PlanView({
         ) : null}
 
         {plan.plan.caveats.length > 0 ? (
-          <ul className="mt-4 space-y-2">
-            {plan.plan.caveats.map((caveat, index) => (
-              <li
-                key={caveat}
-                className="flex items-start gap-2 rounded-field bg-unverified-soft p-3 text-sm text-unverified-ink"
-              >
-                <Icon name="alert" size={15} className="mt-0.5" />
-                <span>{text[`caveat.${index}`] ?? caveat}</span>
-              </li>
-            ))}
-          </ul>
+          <details className="group mt-4 overflow-hidden rounded-field border border-unverified/25 bg-unverified-soft">
+            <summary className="flex cursor-pointer list-none items-center gap-2.5 px-3.5 py-2.5 text-sm font-medium text-unverified-ink [&::-webkit-details-marker]:hidden">
+              <Icon name="alert" size={15} className="shrink-0" />
+              <span>
+                {(plan.plan.caveats.length === 1
+                  ? ui('caveatsOne', language)
+                  : ui('caveatsMany', language)
+                ).replace('{count}', String(plan.plan.caveats.length))}
+              </span>
+              <Icon
+                name="chevron-down"
+                size={16}
+                className="ms-auto shrink-0 transition-transform group-open:rotate-180"
+              />
+            </summary>
+            <ul className="space-y-1.5 border-t border-unverified/20 px-3.5 pb-3 pt-2.5">
+              {plan.plan.caveats.map((caveat, index) => (
+                <li key={caveat} className="flex items-start gap-2 text-sm text-unverified-ink/90">
+                  <span aria-hidden className="mt-[7px] h-1 w-1 shrink-0 rounded-full bg-unverified" />
+                  <span>{text[`caveat.${index}`] ?? caveat}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
         ) : null}
 
         {plan.grounding.violations.length === 0 ? (

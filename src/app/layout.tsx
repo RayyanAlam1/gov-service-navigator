@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter, Noto_Naskh_Arabic } from 'next/font/google';
+import { Noto_Naskh_Arabic, Public_Sans, Source_Serif_4 } from 'next/font/google';
 import './globals.css';
 
 /**
@@ -11,9 +11,23 @@ import './globals.css';
  * beautiful, and considerably harder to read at 16px on a low-DPI phone, which
  * is what this audience is actually holding.
  */
-const latin = Inter({
+const latin = Public_Sans({
   subsets: ['latin'],
   variable: '--font-latin',
+  display: 'swap',
+});
+
+/**
+ * Headings are set in a serif, and that is a deliberate break from the sans
+ * everything else uses. This is a document that tells someone what to do at a
+ * government counter, and it should carry the weight of one — a uniform
+ * geometric sans reads as a SaaS dashboard, which is the wrong promise to make
+ * about a legal procedure. Restricted to display sizes, where a serif costs
+ * nothing in legibility on a low-DPI screen.
+ */
+const display = Source_Serif_4({
+  subsets: ['latin'],
+  variable: '--font-display',
   display: 'swap',
 });
 
@@ -50,7 +64,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" dir="ltr" className={`${latin.variable} ${urdu.variable}`}>
+    <html lang="en" dir="ltr" className={`${latin.variable} ${display.variable} ${urdu.variable}`}>
       <body className="min-h-dvh">
         <a href="#main" className="sr-only-focusable btn-primary fixed left-4 top-4 z-50">
           Skip to main content
