@@ -161,17 +161,26 @@
   }
 
   .btn {
-    @apply inline-flex min-h-touch items-center justify-center gap-2 rounded-field
-           px-4 py-2.5 text-sm font-medium transition-colors duration-150
-           disabled:cursor-not-allowed disabled:opacity-55;
+    @apply inline-flex min-h-touch select-none items-center justify-center gap-2
+           rounded-field px-4 py-2.5 text-sm font-medium
+           transition-[background-color,border-color,box-shadow,transform]
+           duration-150 disabled:cursor-not-allowed disabled:opacity-55;
+  }
+
+  /* A real control depresses. 1px is enough to feel deliberate and not enough
+     to disturb a 44px touch target. */
+  .btn:not(:disabled):active {
+    transform: translateY(1px);
   }
 
   .btn-primary {
-    @apply btn bg-accent text-white hover:bg-accent-hover;
+    @apply btn bg-accent text-white shadow-control hover:bg-accent-hover
+           hover:shadow-control-hover;
   }
 
   .btn-secondary {
-    @apply btn border border-border-strong bg-surface text-ink hover:bg-surface-sunken;
+    @apply btn border border-border-strong bg-surface text-ink
+           hover:border-accent/45 hover:bg-surface-sunken;
   }
 
   .btn-ghost {
