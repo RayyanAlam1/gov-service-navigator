@@ -26,9 +26,14 @@ jobs:
 
     # Only run when a deployment actually succeeded. Vercel also emits
     # `pending` and `failure`, and preview deployments for every branch.
+    # Vercel protects preview deployments behind an auth wall, so every request
+    # to one returns 401 and the smoke test can never pass. Only production
+    # deployments are publicly reachable, so only those are worth verifying.
     if: >
       github.event_name == 'workflow_dispatch' ||
-      github.event.deployment_status.state == 'success'
+      (github.event.deployment_status.state == 'success' &&
+       (github.event.deployment_status.environment == 'Production' ||
+        github.event.deployment_status.environment == 'production'))
 
     steps:
       - uses: actions/checkout@v4
