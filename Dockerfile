@@ -18,7 +18,7 @@
 #      that actually exercises the database rather than just the HTTP port.
 
 # ── Stage 1: dependencies ────────────────────────────────────────────────────
-FROM node:22-bookworm-slim AS deps
+FROM node:26-bookworm-slim AS deps
 
 WORKDIR /app
 
@@ -80,7 +80,7 @@ RUN npm run build
 
 
 # ── Stage 4: runtime ────────────────────────────────────────────────────────
-FROM node:22-bookworm-slim AS runtime
+FROM node:26-bookworm-slim AS runtime
 
 WORKDIR /app
 
