@@ -75,7 +75,7 @@ jobs:
 
       - name: Cache embedding model
         if: inputs.embedding_provider == 'local'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: data/models
           key: embed-model-${{ hashFiles('.env.example') }}

@@ -71,7 +71,7 @@ jobs:
       # Cached separately: the model is ~120MB and changes only when the
       # EMBEDDING_MODEL setting does.
       - name: Cache embedding model
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: data/models
           key: embed-model-${{ hashFiles('.env.example') }}
