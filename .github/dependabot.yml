@@ -1,5 +1,16 @@
-# Dependency updates, grouped so review is a weekly batch rather than a stream
-# of single-package pull requests nobody reads.
+# Dependency updates.
+#
+# Two rules shape this file, both learned from the first batch it produced.
+#
+# Group anything that must move together. `vitest` and `@vitest/coverage-v8`
+# are version-locked by a peer dependency; splitting them across two pull
+# requests produces a guaranteed ERESOLVE, which is what happened.
+#
+# Patch and minor updates arrive automatically. Major updates do not, for
+# runtimes and frameworks — a Node or Next major is a deliberate decision with
+# testing attached, not something to review at the bottom of a weekly batch.
+# Dependabot proposed jumping the base image from Node 22 to Node 26 in its
+# first run; that is exactly the update that should never open itself.
 version: 2
 
 updates:
@@ -8,32 +19,84 @@ updates:
     schedule:
       interval: weekly
       day: monday
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
     groups:
-      # Next, React and the type packages that track them move together.
-      # Splitting them produces pull requests that cannot pass CI alone.
+      # Next, React and the types that track them share a release cadence.
+      # Updated separately, none of them can pass CI alone.
       next-react:
-        patterns: ['next', 'react', 'react-dom', '@types/react', '@types/react-dom', 'eslint-config-next']
+        patterns:
+          - next
+          - react
+          - react-dom
+          - '@types/react'
+          - '@types/react-dom'
+          - eslint-config-next
+      # `@vitest/*` belongs here with vitest itself — its version must match.
       dev-tooling:
-        patterns: ['eslint*', 'typescript', 'vitest', 'tailwindcss', 'postcss', 'autoprefixer', 'tsx', '@types/*']
-        exclude-patterns: ['@types/react', '@types/react-dom']
+        patterns:
+          - 'eslint*'
+          - typescript
+          - vitest
+          - '@vitest/*'
+          - tailwindcss
+          - postcss
+          - autoprefixer
+          - tsx
+          - '@types/*'
+        exclude-patterns:
+          - '@types/react'
+          - '@types/react-dom'
       production:
-        patterns: ['*']
-        exclude-patterns: ['next', 'react', 'react-dom', 'eslint*', 'typescript', 'vitest', 'tailwindcss', 'postcss', 'autoprefixer', 'tsx', '@types/*']
+        patterns:
+          - '*'
+        exclude-patterns:
+          - next
+          - react
+          - react-dom
+          - 'eslint*'
+          - typescript
+          - vitest
+          - '@vitest/*'
+          - tailwindcss
+          - postcss
+          - autoprefixer
+          - tsx
+          - '@types/*'
+    ignore:
+      # Framework majors are planned upgrades, not weekly review items.
+      - dependency-name: next
+        update-types: [version-update:semver-major]
+      - dependency-name: react
+        update-types: [version-update:semver-major]
+      - dependency-name: react-dom
+        update-types: [version-update:semver-major]
+      - dependency-name: vitest
+        update-types: [version-update:semver-major]
+      - dependency-name: tailwindcss
+        update-types: [version-update:semver-major]
     commit-message:
-      prefix: 'deps'
-      prefix-development: 'deps(dev)'
+      prefix: deps
+      prefix-development: deps(dev)
 
+  # Action majors are usually runner-runtime updates, and those are worth
+  # taking — CI currently warns that several actions still target Node 20.
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 3
     commit-message:
-      prefix: 'ci'
+      prefix: ci
 
   - package-ecosystem: docker
     directory: /
     schedule:
       interval: monthly
+    open-pull-requests-limit: 2
+    ignore:
+      # The Node major in the image is pinned to what CI and .nvmrc use.
+      # Moving it is a decision made in all three places at once.
+      - dependency-name: node
+        update-types: [version-update:semver-major]
     commit-message:
-      prefix: 'docker'
+      prefix: docker
