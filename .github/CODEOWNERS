@@ -1,0 +1,16 @@
+# Every change is reviewed by the maintainer. Narrow rules go below the
+# catch-all, because the last matching pattern wins.
+*                       @RayyanAlam1
+
+# The answer path and its guarantees. Changes here can turn a grounded system
+# into a confident one, which is the failure this project exists to prevent.
+/src/lib/engine/        @RayyanAlam1
+/src/lib/guardrails/    @RayyanAlam1
+/src/lib/schemas/       @RayyanAlam1
+/eval/                  @RayyanAlam1
+/db/seed/               @RayyanAlam1
+
+# Anything that can leak a credential or take production down.
+/.github/workflows/     @RayyanAlam1
+/Dockerfile             @RayyanAlam1
+/docker-compose.yml     @RayyanAlam1

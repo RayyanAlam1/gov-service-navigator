@@ -1,0 +1,39 @@
+# Dependency updates, grouped so review is a weekly batch rather than a stream
+# of single-package pull requests nobody reads.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Next, React and the type packages that track them move together.
+      # Splitting them produces pull requests that cannot pass CI alone.
+      next-react:
+        patterns: ['next', 'react', 'react-dom', '@types/react', '@types/react-dom', 'eslint-config-next']
+      dev-tooling:
+        patterns: ['eslint*', 'typescript', 'vitest', 'tailwindcss', 'postcss', 'autoprefixer', 'tsx', '@types/*']
+        exclude-patterns: ['@types/react', '@types/react-dom']
+      production:
+        patterns: ['*']
+        exclude-patterns: ['next', 'react', 'react-dom', 'eslint*', 'typescript', 'vitest', 'tailwindcss', 'postcss', 'autoprefixer', 'tsx', '@types/*']
+    commit-message:
+      prefix: 'deps'
+      prefix-development: 'deps(dev)'
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: 'ci'
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: 'docker'

@@ -1,0 +1,29 @@
+name: Feature request
+description: Propose a change or addition
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What a citizen cannot do today, or does wrongly.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you propose
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: grounding
+    attributes:
+      label: Grounding
+      description: >
+        This system never lets the model supply a government fact. A proposal
+        that needs it to will not be built.
+      options:
+        - label: This can be built without the language model supplying any government fact
+        - label: Any new facts this needs have a citable official source

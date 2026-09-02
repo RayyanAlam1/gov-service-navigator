@@ -1,0 +1,52 @@
+name: Bug report
+description: Something behaves incorrectly
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For anything exploitable, follow SECURITY.md instead of filing here.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you did, what you saw, and what you expected instead.
+    validations:
+      required: true
+
+  - type: input
+    id: input-text
+    attributes:
+      label: The text you entered
+      description: The exact wording matters — intent detection and language detection both key off it.
+      placeholder: mera CNIC gum hogya hai, Karachi mein hun
+
+  - type: dropdown
+    id: language
+    attributes:
+      label: Language
+      options: [English, Urdu, Roman Urdu, Not sure]
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Does this involve a wrong fact on screen?
+      description: >
+        A fabricated fee, deadline or document name is the most serious class of
+        bug in this project, because someone can act on it.
+      options:
+        - 'No - interface or behaviour only'
+        - 'Yes - an incorrect government fact was shown'
+        - 'Yes - a fact was shown without its unverified treatment'
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Output of `npm run doctor`, or the deployment URL if this is the hosted app.
+      render: text

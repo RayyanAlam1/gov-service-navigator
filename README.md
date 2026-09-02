@@ -1,5 +1,19 @@
 # Government Service AI Navigator
 
+[![CI](https://github.com/RayyanAlam1/gov-service-navigator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RayyanAlam1/gov-service-navigator/actions/workflows/ci.yml)
+[![Deployment verified](https://github.com/RayyanAlam1/gov-service-navigator/actions/workflows/verify-deployment.yml/badge.svg)](https://github.com/RayyanAlam1/gov-service-navigator/actions/workflows/verify-deployment.yml)
+[![Live demo](https://img.shields.io/badge/live-gov--service--navigator.vercel.app-046C4E)](https://gov-service-navigator.vercel.app)
+[![License: MIT](https://img.shields.io/badge/license-MIT-1D5B9A)](LICENSE)
+
+[![Unsupported claims](https://img.shields.io/badge/unsupported_claims-0-046C4E)](docs/EVALUATION.md)
+[![Evaluation scenarios](https://img.shields.io/badge/eval_scenarios-51-046C4E)](docs/EVALUATION.md)
+[![Document F1](https://img.shields.io/badge/document_F1-100%25-046C4E)](docs/EVALUATION.md)
+[![Tests](https://img.shields.io/badge/tests-110_passing-1D5B9A)](tests)
+[![Coverage](https://img.shields.io/badge/coverage-70.7%25_core_logic-1D5B9A)](vitest.config.ts)
+![Next.js 15](https://img.shields.io/badge/Next.js-15-000000?logo=next.js&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
+![PostgreSQL + pgvector](https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql&logoColor=white)
+
 **We turn complex Pakistani government procedures into personalised, verified action plans.**
 
 Citizens lose days to a solvable information problem. The rules for getting a CNIC, a passport or a

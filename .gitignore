@@ -42,3 +42,6 @@ Thumbs.db
 
 # Claude Code local config (dev-server launch profile)
 .claude/
+
+# Coverage output
+/coverage
