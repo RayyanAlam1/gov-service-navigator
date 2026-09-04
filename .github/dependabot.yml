@@ -71,6 +71,11 @@ updates:
       # one at a time, with their migration guides open.
       - dependency-name: '*'
         update-types: [version-update:semver-major]
+      # pglite is still 0.x, where semver calls breaking changes "minor":
+      # 0.2 -> 0.5 sailed past the major rule above and failed the build.
+      # Patches still arrive; anything larger is a deliberate migration.
+      - dependency-name: '@electric-sql/pglite'
+        update-types: [version-update:semver-minor]
     commit-message:
       prefix: deps
       prefix-development: deps(dev)
