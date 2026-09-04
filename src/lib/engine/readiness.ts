@@ -262,8 +262,18 @@ export interface AssessReadinessInput {
   bundle: ServiceBundle;
   state: DecisionState;
   checklist: readonly ChecklistItem[];
-  /** True while the interview still has a useful question outstanding. */
+  /** True when the interview asked nothing further (for any reason). */
   interviewComplete: boolean;
+  /**
+   * True when the interview stopped on its question budget with useful
+   * questions outstanding. A truncated interview must never produce a
+   * `ready` verdict: unresolved questions mean unresolved applicability,
+   * and "ready" on unresolved applicability is a guess. This used to be
+   * folded into `interviewComplete`, which made truncation indistinguishable
+   * from genuine completion right here — the one place the distinction
+   * decides what the citizen is told.
+   */
+  interviewTruncated: boolean;
 }
 
 /**
@@ -280,6 +290,7 @@ export function assessReadiness({
   state,
   checklist,
   interviewComplete,
+  interviewTruncated,
 }: AssessReadinessInput): ReadinessReport {
   void bundle;
   const mandatory = checklist.filter((i) => i.isMandatory);
@@ -300,7 +311,7 @@ export function assessReadiness({
   let readinessState: ReadinessState;
   if (blockingRules.length > 0) {
     readinessState = 'not_ready';
-  } else if (state.eligibility.outcome === 'undetermined' || !interviewComplete) {
+  } else if (state.eligibility.outcome === 'undetermined' || !interviewComplete || interviewTruncated) {
     readinessState = 'undetermined';
   } else if (unknown.length > 0) {
     readinessState = 'undetermined';

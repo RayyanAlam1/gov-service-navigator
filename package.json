@@ -34,7 +34,8 @@
     "smoke": "tsx scripts/smoke.ts",
     "db:deploy": "tsx scripts/migrate.ts && tsx scripts/seed.ts",
     "check:models": "tsx scripts/check-models.ts",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:properties": "vitest run tests/properties"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.2.17",

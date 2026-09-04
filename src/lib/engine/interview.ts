@@ -25,19 +25,35 @@
  * database-authored fallback.
  */
 import { getConfig } from '@/lib/config/env';
+import { collectProbeConstants, type ProbeConstants } from '@/lib/schemas/conditions';
 import type { AnswerMap, AnswerValue } from '@/lib/schemas/core';
 import type { DecisionVariable, ServiceBundle } from '@/lib/schemas/domain';
-import { decide, outcomeFingerprint, type DecisionState } from './rules';
+import { allBundleConditions, decide, outcomeFingerprint, type DecisionState } from './rules';
 
-/** Hard cap. A citizen who has answered this many questions is being interrogated. */
-const MAX_QUESTIONS_PER_SESSION = 8;
-
-/** Numeric probes for range rules — enough to straddle any realistic threshold. */
-const NUMERIC_PROBES: readonly number[] = [0, 5, 17, 18, 21, 30, 45, 60, 65, 100];
+/**
+ * The comparison constants of every condition tree in the bundle, keyed by
+ * variable. This is what makes numeric, date and text probing sound: probes
+ * are derived from the thresholds the rules actually use, so a threshold
+ * cannot exist that the probe set fails to straddle. The previous design — a
+ * hardcoded probe list with a comment asserting it covered "every threshold
+ * this domain uses" — was an invariant enforced by nobody, and it broke the
+ * moment a rule compared against a value above the list's maximum.
+ */
+export function probeConstantsFor(bundle: ServiceBundle): ProbeConstants {
+  return collectProbeConstants(allBundleConditions(bundle));
+}
 
 export interface QuestionCandidate {
   variable: DecisionVariable;
-  /** Distinct outcomes this question's answers would produce. 1 = useless. */
+  /**
+   * Distinct outcomes across every probed answer AND the unanswered baseline.
+   * 1 = nothing this question could change; >1 = either different answers
+   * lead to different plans, or answering at all changes the plan relative to
+   * leaving it unanswered. The baseline must be part of this set: a variable
+   * whose every answer agrees — but disagrees with "not yet asked" — is a
+   * question that changes the plan, and skipping it shows the citizen an
+   * outcome no possible answer of theirs would produce.
+   */
   distinctOutcomes: number;
   /** Normalized 0..1 usefulness. Ranks candidates. */
   gain: number;
@@ -48,13 +64,23 @@ export interface QuestionCandidate {
 }
 
 export interface InterviewPlan {
-  /** The next question, or null when the interview is complete. */
+  /** The next question, or null when the interview is over. */
   next: DecisionVariable | null;
   /** Why `next` was chosen; surfaced by the "why are you asking?" affordance. */
   rationale: string[];
   candidates: QuestionCandidate[];
-  /** True when no remaining question could change the outcome. */
+  /** True when the interview asks nothing further, for any reason. */
   complete: boolean;
+  /**
+   * True when the interview stopped on the question budget with useful
+   * questions still outstanding. A truncated interview is NOT a finished one:
+   * the plan built from it must stay hedged (readiness `undetermined`,
+   * unresolved items in the may-apply band, an explicit caveat). Callers that
+   * branch on `complete` alone treat truncation as completion — that mistake
+   * shipped once, in the readiness check, which is why this is a separate
+   * field rather than a fourth completionReason to remember to check.
+   */
+  truncated: boolean;
   /** Why the interview stopped. */
   completionReason: 'no_open_variables' | 'no_information_gain' | 'question_budget' | 'in_progress';
   askedCount: number;
@@ -66,12 +92,22 @@ export interface InterviewPlan {
  * The value domain to probe for a variable.
  *
  * For enums and booleans this is exact, so the gain calculation is exact too.
- * For numbers and free text it is a sample, which can only ever *under*-report
- * gain — a question is never wrongly skipped because a probe missed a
- * threshold, since under-reporting gain to zero requires every probe to agree,
- * and the probe set straddles every threshold this domain uses.
+ * For numbers, dates and free text it is a sample derived from the constants
+ * the condition trees actually compare against (see `probeConstantsFor`):
+ *
+ *   - numbers probe every threshold, the midpoint of every gap between
+ *     consecutive thresholds, and one value beyond each end — which reaches
+ *     every equivalence region the comparison operators can distinguish;
+ *   - dates and text probe every literal the rules mention, plus values that
+ *     exercise the `answered` / `truthy` / `falsy` gates.
+ *
+ * Sampling can then only ever *under*-report gain for value regions no rule
+ * distinguishes — which by construction cannot change any outcome.
  */
-export function candidateValues(variable: DecisionVariable): AnswerValue[] {
+export function candidateValues(
+  variable: DecisionVariable,
+  constants?: ProbeConstants,
+): AnswerValue[] {
   switch (variable.type) {
     case 'boolean':
       return [true, false];
@@ -79,15 +115,31 @@ export function candidateValues(variable: DecisionVariable): AnswerValue[] {
       const values = variable.options.map((o) => o.value as AnswerValue);
       return values.length > 0 ? values : [null];
     }
-    case 'number':
-      return [...NUMERIC_PROBES];
-    case 'date':
-      // Rules over dates are expressed as derived numeric variables (e.g.
-      // days_since_expiry), so a date itself only ever gates `answered`.
-      return ['1990-01-01', new Date().toISOString().slice(0, 10)];
-    case 'text':
-      // Free text gates `answered` / `truthy` checks rather than comparisons.
-      return ['', 'value'];
+    case 'number': {
+      const thresholds = [...(constants?.numbers.get(variable.code) ?? [])].sort((a, b) => a - b);
+      if (thresholds.length === 0) return [0, 1];
+      const probes = new Set<number>();
+      const first = thresholds[0];
+      const last = thresholds[thresholds.length - 1];
+      if (first !== undefined) probes.add(first - 1);
+      for (let i = 0; i < thresholds.length; i++) {
+        const t = thresholds[i];
+        if (t === undefined) continue;
+        probes.add(t);
+        const nextT = thresholds[i + 1];
+        if (nextT !== undefined) probes.add((t + nextT) / 2);
+      }
+      if (last !== undefined) probes.add(last + 1);
+      return [...probes];
+    }
+    case 'date': {
+      const literals = constants?.strings.get(variable.code) ?? new Set<string>();
+      return [...new Set(['1990-01-01', new Date().toISOString().slice(0, 10), ...literals])];
+    }
+    case 'text': {
+      const literals = constants?.strings.get(variable.code) ?? new Set<string>();
+      return [...new Set(['', 'value', ...literals])];
+    }
   }
 }
 
@@ -135,9 +187,20 @@ export function scoreCandidate(
   variable: DecisionVariable,
   answers: AnswerMap,
   baseline: DecisionState,
+  constants?: ProbeConstants,
 ): QuestionCandidate {
-  const probes = candidateValues(variable);
-  const fingerprints = new Set<string>();
+  const probes = candidateValues(variable, constants ?? probeConstantsFor(bundle));
+
+  // Seeded with the baseline: the comparison that matters is not only
+  // "do different answers disagree with each other" but "does answering at
+  // all change what the citizen is told". Before the baseline was included,
+  // a variable whose every answer produced the same outcome — different from
+  // the unanswered state — computed zero gain, was never asked, and the
+  // interview ended on a plan that no possible answer could produce. Same
+  // failure class as the recorded `is_overseas` incident: a wrong answer
+  // reached by never asking, invisible to a suite whose scenarios only
+  // script the questions the planner chooses to ask.
+  const fingerprints = new Set<string>([outcomeFingerprint(baseline)]);
   const affects = new Set<string>();
 
   for (const value of probes) {
@@ -155,9 +218,11 @@ export function scoreCandidate(
   // extra question.
   const isBlocking = baseline.eligibility.undetermined.some((u) => u.pending.includes(variable.code));
 
-  // Normalize: 2 distinct outcomes from a yes/no is a perfect split; more
-  // outcomes from more options is proportionally more informative.
-  const maxPossible = Math.max(2, probes.length);
+  // Normalize: the fingerprint set can hold at most probes + baseline
+  // members. A yes/no that splits into two answer outcomes both distinct
+  // from the baseline is a perfect split; answers that merely settle a
+  // hedge (all agreeing, baseline different) score half.
+  const maxPossible = Math.max(2, probes.length + 1);
   const raw = (distinctOutcomes - 1) / (maxPossible - 1);
   const gain = Math.min(1, Math.max(0, raw)) * (isBlocking ? 1.25 : 1);
 
@@ -169,6 +234,12 @@ export interface PlanInterviewInput {
   answers: AnswerMap;
   /** Variable codes already put to the citizen, including ones they skipped. */
   asked: readonly string[];
+  /**
+   * Override for the question budget; defaults to config
+   * (`INTERVIEW_MAX_QUESTIONS`). Exists so tests can force budget exhaustion
+   * deterministically — the seeded services never reach the real ceiling.
+   */
+  maxQuestions?: number;
 }
 
 /**
@@ -178,10 +249,15 @@ export interface PlanInterviewInput {
  * gain, then the curated `askPriority` from the database, then variable code
  * for a stable tie-break so the same session always asks in the same order.
  */
-export function planInterview({ bundle, answers, asked }: PlanInterviewInput): InterviewPlan {
+export function planInterview({ bundle, answers, asked, maxQuestions }: PlanInterviewInput): InterviewPlan {
   const askedSet = new Set(asked);
   const baseline = decide(bundle, answers);
   const askedCount = asked.length;
+  const budget = maxQuestions ?? getConfig().INTERVIEW_MAX_QUESTIONS;
+
+  // Computed once per turn, not once per candidate: the walk over every
+  // condition tree is the same for all of them.
+  const constants = probeConstantsFor(bundle);
 
   const byCode = new Map(bundle.variables.map((v) => [v.code, v] as const));
 
@@ -198,6 +274,7 @@ export function planInterview({ bundle, answers, asked }: PlanInterviewInput): I
       rationale: [],
       candidates: [],
       complete: true,
+      truncated: false,
       completionReason: 'no_open_variables',
       askedCount,
       progress: 1,
@@ -205,7 +282,7 @@ export function planInterview({ bundle, answers, asked }: PlanInterviewInput): I
   }
 
   const scored = open
-    .map((variable) => scoreCandidate(bundle, variable, answers, baseline))
+    .map((variable) => scoreCandidate(bundle, variable, answers, baseline, constants))
     .sort((a, b) => {
       if (a.isBlocking !== b.isBlocking) return a.isBlocking ? -1 : 1;
       if (b.gain !== a.gain) return b.gain - a.gain;
@@ -223,21 +300,27 @@ export function planInterview({ bundle, answers, asked }: PlanInterviewInput): I
       rationale: [],
       candidates: scored,
       complete: true,
+      truncated: false,
       completionReason: 'no_information_gain',
       askedCount,
       progress: 1,
     };
   }
 
-  if (askedCount >= MAX_QUESTIONS_PER_SESSION) {
-    // Budget exhausted with questions still outstanding. The plan will carry
-    // the remaining uncertainty as explicit "may apply" items rather than
-    // resolving it by guessing.
+  // The budget is a hard ceiling against interrogation, not an optimisation.
+  // Deliberately NOT a minimum-gain threshold: "useful" already means some
+  // answer changes the plan, and skipping any such question — however small
+  // its gain score — breaks the safety property that a finished interview is
+  // one no remaining answer could alter. A citizen two questions from a
+  // definitive plan will answer two more; the ceiling exists for pathological
+  // rule sets, and hitting it is reported as truncation, never as completion.
+  if (askedCount >= budget) {
     return {
       next: null,
       rationale: [],
       candidates: scored,
       complete: true,
+      truncated: true,
       completionReason: 'question_budget',
       askedCount,
       progress: 1,
@@ -251,6 +334,7 @@ export function planInterview({ bundle, answers, asked }: PlanInterviewInput): I
       rationale: [],
       candidates: scored,
       complete: true,
+      truncated: false,
       completionReason: 'no_information_gain',
       askedCount,
       progress: 1,
@@ -271,6 +355,7 @@ export function planInterview({ bundle, answers, asked }: PlanInterviewInput): I
     rationale,
     candidates: scored,
     complete: false,
+    truncated: false,
     completionReason: 'in_progress',
     askedCount,
     progress,
@@ -286,8 +371,6 @@ export function planInterview({ bundle, answers, asked }: PlanInterviewInput): I
  * mistake from silently becoming a wrong plan.
  */
 export function inferableVariables(bundle: ServiceBundle): DecisionVariable[] {
-  const cfg = getConfig();
-  void cfg;
   return bundle.variables
     .filter((v) => !v.isSensitive && (v.type === 'boolean' || v.type === 'enum'))
     .sort((a, b) => a.askPriority - b.askPriority);

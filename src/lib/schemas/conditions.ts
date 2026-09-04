@@ -243,6 +243,115 @@ export function unresolvedVariables(condition: Condition, answers: AnswerMap): S
 }
 
 /**
+ * Unanswered variables sitting under an `answered` operator.
+ *
+ * Three-valued evaluation is monotone in knowledge for every operator except
+ * this one: a comparison over a missing answer is UNKNOWN and can only refine
+ * to a definite value, but `answered(x)` is definitively FALSE while x is
+ * missing and flips to TRUE the moment any answer arrives. A row gated on it
+ * therefore evaluates *definitely* at baseline and still changes when the
+ * citizen speaks — so "the verdict is settled" is not evidence the variable
+ * is settled. Open-variable collection has to treat these specially, or the
+ * planner can never ask a question whose only effect is behind such a gate.
+ */
+export function answeredGateVariables(
+  condition: Condition,
+  answers: AnswerMap,
+  into: Set<string> = new Set(),
+): Set<string> {
+  switch (condition.op) {
+    case 'and':
+    case 'or':
+      for (const c of condition.children) answeredGateVariables(c, answers, into);
+      break;
+    case 'not':
+      answeredGateVariables(condition.child, answers, into);
+      break;
+    case 'answered':
+      if (!lookup(answers, condition.var).known) into.add(condition.var);
+      break;
+    default:
+      break;
+  }
+  return into;
+}
+
+/* ── Probe constants ──────────────────────────────────────────────────── */
+
+/**
+ * Every literal a set of condition trees compares against, grouped by the
+ * variable it is compared to.
+ *
+ * The interview planner simulates answers to measure whether a question can
+ * change the plan. For enums and booleans the value domain is exact; for
+ * numbers, dates and text it has to be sampled — and a sample that misses a
+ * threshold silently under-reports a question's information gain to zero.
+ * The probe set used to be a hardcoded list with a comment asserting it
+ * straddled every threshold "this domain uses"; that invariant was true by
+ * inspection and enforced by nothing, which is how a threshold of 400 made a
+ * question unaskable. Deriving the constants from the condition trees makes
+ * the straddling property hold by construction: a threshold cannot exist
+ * that this walker did not see.
+ */
+export interface ProbeConstants {
+  numbers: Map<string, Set<number>>;
+  strings: Map<string, Set<string>>;
+}
+
+export function collectProbeConstants(
+  conditions: Iterable<Condition>,
+  into: ProbeConstants = { numbers: new Map(), strings: new Map() },
+): ProbeConstants {
+  const addNumber = (variable: string, value: number) => {
+    if (!Number.isFinite(value)) return;
+    const set = into.numbers.get(variable) ?? new Set<number>();
+    set.add(value);
+    into.numbers.set(variable, set);
+  };
+  const addString = (variable: string, value: string) => {
+    const set = into.strings.get(variable) ?? new Set<string>();
+    set.add(value);
+    into.strings.set(variable, set);
+  };
+  const addValue = (variable: string, value: AnswerValue) => {
+    if (typeof value === 'number') addNumber(variable, value);
+    else if (typeof value === 'string') addString(variable, value);
+    // Booleans and nulls need no constants: their domains are probed exactly.
+  };
+
+  const walk = (condition: Condition): void => {
+    switch (condition.op) {
+      case 'and':
+      case 'or':
+        for (const c of condition.children) walk(c);
+        return;
+      case 'not':
+        walk(condition.child);
+        return;
+      case 'gt':
+      case 'gte':
+      case 'lt':
+      case 'lte':
+        addNumber(condition.var, condition.value);
+        return;
+      case 'eq':
+      case 'neq':
+        addValue(condition.var, condition.value);
+        return;
+      case 'in':
+      case 'nin':
+        for (const v of condition.value) addValue(condition.var, v);
+        return;
+      default:
+        return;
+    }
+  };
+
+  for (const condition of conditions) walk(condition);
+  return into;
+}
+
+/**
  * Human-readable rendering, used by the "why are you asking this?" affordance
  * and by the trace panel. Deliberately plain: this is shown to citizens.
  */

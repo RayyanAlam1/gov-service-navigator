@@ -12,6 +12,7 @@
  * what drives the adaptive interview instead of a fixed question list.
  */
 import {
+  answeredGateVariables,
   evaluate,
   referencedVariables,
   type Condition,
@@ -289,6 +290,36 @@ export function matchExceptions(
   };
 }
 
+/* ── Condition enumeration ────────────────────────────────────────────── */
+
+/**
+ * Every condition tree in the bundle that is in play for the given scenario.
+ * Selector conditions are always in play (they decide the scenario itself);
+ * scoped rows contribute only when global or attached to the current branch.
+ */
+export function conditionsInScope(bundle: ServiceBundle, scenarioId: number | null): Condition[] {
+  const out: Condition[] = [];
+  for (const s of bundle.scenarios) out.push(s.selector);
+  for (const r of bundle.rules) if (inScope(r, scenarioId)) out.push(r.condition);
+  for (const r of bundle.requirements) if (inScope(r, scenarioId)) out.push(r.appliesWhen);
+  for (const s of bundle.steps) if (inScope(s, scenarioId)) out.push(s.appliesWhen);
+  for (const f of bundle.fees) if (inScope(f, scenarioId)) out.push(f.appliesWhen);
+  for (const t of bundle.processingTimes) if (inScope(t, scenarioId)) out.push(t.appliesWhen);
+  for (const e of bundle.exceptions) out.push(e.trigger);
+  return out;
+}
+
+/** Every condition tree in the bundle, scope-blind. Probe-constant material. */
+export function allBundleConditions(bundle: ServiceBundle): Condition[] {
+  return conditionsInScope(bundle, null).concat(
+    bundle.rules.filter((r) => r.scenarioId !== null).map((r) => r.condition),
+    bundle.requirements.filter((r) => r.scenarioId !== null).map((r) => r.appliesWhen),
+    bundle.steps.filter((s) => s.scenarioId !== null).map((s) => s.appliesWhen),
+    bundle.fees.filter((f) => f.scenarioId !== null).map((f) => f.appliesWhen),
+    bundle.processingTimes.filter((t) => t.scenarioId !== null).map((t) => t.appliesWhen),
+  );
+}
+
 /* ── Aggregate decision ───────────────────────────────────────────────── */
 
 export interface DecisionState {
@@ -333,6 +364,17 @@ export function decide(bundle: ServiceBundle, answers: AnswerMap): DecisionState
   // an unasked "is your current address different from your CNIC address?"
   // is the difference between a correct plan and a wasted trip.
   for (const e of exceptions.fired) for (const v of e.pending) open.add(v);
+
+  // The `answered` operator is the one place three-valued evaluation is not
+  // monotone in knowledge: a condition gated on it evaluates *definitely*
+  // while the variable is missing — false for `answered(x)`, true for
+  // `not(answered(x))` — and flips the moment any answer arrives. Rows in
+  // that state are dropped or admitted as settled, so their variables never
+  // reach the pending sets above, and the planner could not ask a question
+  // whose only effect sits behind such a gate. Collect them explicitly.
+  for (const condition of conditionsInScope(bundle, scenarioId)) {
+    for (const v of answeredGateVariables(condition, answers)) open.add(v);
+  }
 
   return {
     selection,

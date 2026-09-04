@@ -158,6 +158,15 @@ const EnvSchema = z.object({
   RATE_LIMIT_MAX_REQUESTS: int(60, 1, 10_000),
   MAX_INPUT_CHARS: int(1200, 40, 20_000),
   MAX_UPLOAD_BYTES: int(5_242_880, 1024, 52_428_800),
+  /**
+   * Hard ceiling on interview length — an anti-interrogation guard, not a
+   * target. The planner already stops the moment no remaining answer can
+   * change the plan (measured average: ~4.5 questions), so this only fires
+   * on pathological rule sets, and firing is reported as truncation with the
+   * plan hedged accordingly. Not a minimum-gain cutoff: any question whose
+   * answer changes the plan is worth asking, whatever its gain score.
+   */
+  INTERVIEW_MAX_QUESTIONS: int(16, 1, 64),
 
   /* ── Documents ──────────────────────────────────────────────────────── */
   OCR_PROVIDER: str('mock').pipe(z.enum(['mock'])),

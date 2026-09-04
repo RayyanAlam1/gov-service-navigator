@@ -35,6 +35,8 @@ export interface AssemblePlanInput {
   answers: AnswerMap;
   sufficiency: SufficiencyReport | null;
   language: Language;
+  /** True when the interview hit its question budget with questions left. */
+  interviewTruncated: boolean;
 }
 
 /**
@@ -106,8 +108,19 @@ function buildCaveats(
   state: DecisionState,
   checklist: readonly ChecklistItem[],
   sufficiency: SufficiencyReport | null,
+  interviewTruncated: boolean,
 ): string[] {
   const caveats: string[] = [];
+
+  // Truncation leads: it explains every hedge that follows it. The items the
+  // interview never settled sit in the may-apply band, and the citizen must
+  // know that band exists because we stopped asking, not because the rules
+  // are vague.
+  if (interviewTruncated) {
+    caveats.push(
+      'We paused the questions before every detail was settled, so some items are marked as possibly required rather than confirmed. If an item might apply to you, treat it as required.',
+    );
+  }
 
   if (state.eligibility.outcome === 'undetermined') {
     caveats.push(
@@ -158,6 +171,7 @@ export function assembleActionPlan({
   answers,
   sufficiency,
   language,
+  interviewTruncated,
 }: AssemblePlanInput): ActionPlan {
   void answers;
 
@@ -209,7 +223,7 @@ export function assembleActionPlan({
       escalateToOffice: e.route.escalateToOffice,
       source: e.route.source,
     })),
-    caveats: buildCaveats(bundle, state, checklist, sufficiency),
+    caveats: buildCaveats(bundle, state, checklist, sufficiency, interviewTruncated),
     generatedAt: new Date().toISOString(),
   };
 }

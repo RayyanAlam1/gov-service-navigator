@@ -298,7 +298,15 @@ export async function advanceSession({
 
   recordInterviewStep(context, interview, bundle, answers);
 
-  const plan = await buildPlan({ bundle, answers, session, language, context, interviewComplete: interview.complete });
+  const plan = await buildPlan({
+    bundle,
+    answers,
+    session,
+    language,
+    context,
+    interviewComplete: interview.complete,
+    interviewTruncated: interview.truncated,
+  });
   await persistTrace(context);
   return plan;
 }
@@ -319,6 +327,7 @@ function recordInterviewStep(
     output: {
       next: interview.next?.code ?? null,
       complete: interview.complete,
+      truncated: interview.truncated,
       reason: interview.completionReason,
       // Showing the questions that were *considered and skipped* is the most
       // convincing single artefact for "it only asks what matters".
@@ -343,6 +352,7 @@ interface BuildPlanInput {
   language: Language;
   context: TurnContext;
   interviewComplete: boolean;
+  interviewTruncated: boolean;
 }
 
 async function buildPlan({
@@ -352,6 +362,7 @@ async function buildPlan({
   language,
   context,
   interviewComplete,
+  interviewTruncated,
 }: BuildPlanInput): Promise<TurnResult> {
   const cfg = getConfig();
   const rulesStarted = Date.now();
@@ -399,7 +410,7 @@ async function buildPlan({
   const checklist = buildChecklist({ bundle, state, answers, language });
 
   const readinessStarted = Date.now();
-  const readiness = assessReadiness({ bundle, state, checklist, interviewComplete });
+  const readiness = assessReadiness({ bundle, state, checklist, interviewComplete, interviewTruncated });
   context.record({
     agent: 'readiness',
     stage: 'readiness_check',
@@ -425,6 +436,7 @@ async function buildPlan({
     answers,
     sufficiency: retrieval.sufficiency,
     language,
+    interviewTruncated,
   });
 
   const composed = await composePlanText({ plan, readiness, language }, context);

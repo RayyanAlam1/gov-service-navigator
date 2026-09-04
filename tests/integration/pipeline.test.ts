@@ -260,7 +260,7 @@ describe('readiness engine', () => {
     const answers = { application_type: 'lost', applicant_age: 30, has_fir: true, address_matches_cnic: true };
     const state = decide(bundle, answers);
     const checklist = buildChecklist({ bundle, state, answers, language: 'en' });
-    const readiness = assessReadiness({ bundle, state, checklist, interviewComplete: true });
+    const readiness = assessReadiness({ bundle, state, checklist, interviewComplete: true, interviewTruncated: false });
 
     expect(readiness.state).not.toBe('ready');
     expect(readiness.unknown.length).toBeGreaterThan(0);
@@ -279,7 +279,7 @@ describe('readiness engine', () => {
     const answers = { ...base, ...possession };
     const nextState = decide(bundle, answers);
     const checklist = buildChecklist({ bundle, state: nextState, answers, language: 'en' });
-    const readiness = assessReadiness({ bundle, state: nextState, checklist, interviewComplete: true });
+    const readiness = assessReadiness({ bundle, state: nextState, checklist, interviewComplete: true, interviewTruncated: false });
 
     expect(readiness.state).toBe('ready');
     expect(readiness.missing).toEqual([]);
@@ -297,7 +297,7 @@ describe('readiness engine', () => {
     };
     const state = decide(bundle, answers);
     const checklist = buildChecklist({ bundle, state, answers, language: 'en' });
-    const readiness = assessReadiness({ bundle, state, checklist, interviewComplete: true });
+    const readiness = assessReadiness({ bundle, state, checklist, interviewComplete: true, interviewTruncated: false });
 
     expect(readiness.state).toBe('not_ready');
     expect(readiness.blockingRules[0]?.code).toBe('age_minimum');
