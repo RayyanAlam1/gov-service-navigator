@@ -407,7 +407,7 @@ function printReport(results: readonly ScenarioResult[], metrics: Metrics): bool
   allOk = row('Required-document F1', metrics.documentF1, TARGETS.documentF1) && allOk;
   allOk = row('Readiness classification', metrics.readinessAccuracy, TARGETS.readinessAccuracy) && allOk;
   allOk = row('Guardrail handling', metrics.guardrailAccuracy, TARGETS.guardrailAccuracy) && allOk;
-  allOk = row('Source grounding', metrics.groundingRate, TARGETS.groundingRate, true) && allOk;
+  allOk = row('Source link integrity', metrics.groundingRate, TARGETS.groundingRate, true) && allOk;
 
   const claimsOk = metrics.unsupportedClaims === TARGETS.unsupportedClaims;
   console.log(
@@ -466,7 +466,7 @@ ${metricRow('Scenario identification', metrics.scenarioAccuracy, TARGETS.scenari
 ${metricRow('Required-document F1', metrics.documentF1, TARGETS.documentF1)}
 ${metricRow('Readiness classification', metrics.readinessAccuracy, TARGETS.readinessAccuracy)}
 ${metricRow('Guardrail handling', metrics.guardrailAccuracy, TARGETS.guardrailAccuracy)}
-${metricRow('Source grounding', metrics.groundingRate, TARGETS.groundingRate)}
+${metricRow('Source link integrity', metrics.groundingRate, TARGETS.groundingRate)}
 <tr class="${metrics.unsupportedClaims === 0 ? 'ok' : 'bad'}"><td>Unsupported claims</td><td class="num">${metrics.unsupportedClaims}</td><td class="num">0</td><td>${metrics.unsupportedClaims === 0 ? '✓' : '✖'}</td></tr>
 </tbody></table>
 

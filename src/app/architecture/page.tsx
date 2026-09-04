@@ -385,7 +385,7 @@ export default async function ArchitecturePage() {
                       ['Scenario identification', pct(latestEval.scenario_accuracy), '90%'],
                       ['Required-document F1', pct(latestEval.requirement_f1), '90%'],
                       ['Readiness classification', pct(latestEval.readiness_accuracy), '90%'],
-                      ['Source grounding', pct(latestEval.grounding_rate), '100%'],
+                      ['Source link integrity', pct(latestEval.grounding_rate), '100%'],
                       ['Unsupported claims', String(latestEval.unsupported_claims), '0'],
                       [
                         'Average questions asked',

@@ -1,14 +1,24 @@
 # Government Service AI Navigator
 
+> **Status — read this first.** The architecture, tests and deployment are real
+> and verified by CI; the *facts* are not yet. Of the 52 citizen-facing fact
+> rows (requirements, fees, steps, offices), **0 are verified, 41 are
+> unverified and 11 are synthetic** — every fee is `NULL` on purpose, and
+> office rows carry no street address. The document checker is a mock behind a
+> real interface. The evaluation suite measures the deterministic pipeline's
+> internal consistency, not correctness against Pakistani government reality.
+> Making one service (CNIC) fully verified is the current work, and this block
+> will track it.
+
 [![CI](https://github.com/RayyanAlam1/gov-service-navigator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/RayyanAlam1/gov-service-navigator/actions/workflows/ci.yml)
 [![Deployment verified](https://github.com/RayyanAlam1/gov-service-navigator/actions/workflows/verify-deployment.yml/badge.svg)](https://github.com/RayyanAlam1/gov-service-navigator/actions/workflows/verify-deployment.yml)
 [![Live demo](https://img.shields.io/badge/live-gov--service--navigator.vercel.app-046C4E)](https://gov-service-navigator.vercel.app)
 [![License: MIT](https://img.shields.io/badge/license-MIT-1D5B9A)](LICENSE)
 
-[![Unsupported claims](https://img.shields.io/badge/unsupported_claims-0-046C4E)](docs/EVALUATION.md)
-[![Evaluation scenarios](https://img.shields.io/badge/eval_scenarios-51-046C4E)](docs/EVALUATION.md)
-[![Document F1](https://img.shields.io/badge/document_F1-100%25-046C4E)](docs/EVALUATION.md)
-[![Tests](https://img.shields.io/badge/tests-110_passing-1D5B9A)](tests)
+[![Verified facts](https://img.shields.io/badge/verified_facts-0%2F52-B45309)](docs/DATA_PROVENANCE.md)
+[![Source support rate](https://img.shields.io/badge/source_support_rate-not_yet_measured-6B7280)](docs/EVALUATION.md)
+[![Evaluation scenarios](https://img.shields.io/badge/eval_scenarios-51-1D5B9A)](docs/EVALUATION.md)
+[![Tests](https://img.shields.io/badge/tests-120_passing-1D5B9A)](tests)
 [![Coverage](https://img.shields.io/badge/coverage-70.7%25_core_logic-1D5B9A)](vitest.config.ts)
 ![Next.js 15](https://img.shields.io/badge/Next.js-15-000000?logo=next.js&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?logo=typescript&logoColor=white)
@@ -155,17 +165,29 @@ npm run eval -- --html    # also writes eval/report/index.html
 
 | Metric | Target | Current |
 |---|---|---|
-| Service identification | ≥ 90% | **100%** |
-| Scenario identification | ≥ 90% | **100%** |
-| Required-document F1 | ≥ 90% | **100%** |
-| Readiness classification | ≥ 90% | **100%** |
-| Guardrail handling | ≥ 90% | **100%** |
-| Source grounding | **100%** | **100%** |
+| Service identification | ≥ 90% | 100% |
+| Scenario identification | ≥ 90% | 100% |
+| Required-document F1 | ≥ 90% | 100% |
+| Readiness classification | ≥ 90% | 100% |
+| Guardrail handling | ≥ 90% | 100% |
+| Source link integrity | **100%** | 100% |
 | Unsupported claims | **0** | **0** |
 | Average questions asked | as few as possible | **4.5** |
 
-The last two targets are absolute, and `npm run eval` exits non-zero if either is missed. A 99%
-grounding rate means one citizen in a hundred is sent to the wrong office with confidence.
+Read those numbers for what they are: the suite and the rules were authored by the same person, so
+100% means the deterministic pipeline is self-consistent, not that it matches Pakistani government
+reality. **Source link integrity** is deliberately named for what it checks — every plan element
+carries a resolvable `source_id` — because a pointer existing is not the same as a pointer
+*supporting the claim*. The metric that would measure the latter, `source_support_rate` (human
+annotation of sampled claims against their cited spans), does not exist yet and is listed as such.
+
+The two absolute targets make `npm run eval` exit non-zero when missed. A 99% link-integrity rate
+means one citizen in a hundred is shown an untraceable claim with confidence.
+
+There is also a generative property suite (`npm run test:properties`): across hundreds of random
+rule bundles and ~2,000 answer states, whenever the interview declares itself complete, no
+unanswered question — probed with any value — may change the resulting plan. That property held
+only after fixing two real planner defects it was written to expose.
 
 Document accuracy is measured as **F1**, not recall, because over-listing is a real failure too: a
 checklist with documents you don't need sends you away to collect them.
@@ -208,7 +230,8 @@ See [`docs/DATA_PROVENANCE.md`](docs/DATA_PROVENANCE.md).
 | `npm run ingest` | Ingest an official page or file into the corpus |
 | `npm run eval` | Run the evaluation suite |
 | `npm run probe` | Re-derive retrieval thresholds for the current model |
-| `npm run test` | Unit + integration tests (104) |
+| `npm run test` | Unit, integration and property tests (120) |
+| `npm run test:properties` | The completeness-implies-stability property suite alone |
 | `npm run verify` | Typecheck + tests + evaluation |
 | `npm run db:deploy` | Migrate + seed a remote database |
 | `npm run smoke -- <url>` | Verify a live deployment end to end |
@@ -251,6 +274,26 @@ No ORM. Every statement is SQL you can read, paste into `psql`, and explain — 
 product whose whole value is *"you can check where this fact came from."*
 
 ---
+
+## Known limitations
+
+Named by us before a reviewer names them, because each one shapes what this project currently is:
+
+- **The knowledge base is factually empty.** Structurally complete, zero verified facts. Until the
+  verification pipeline lands and CNIC is verified end to end, this is an engine without fuel — a
+  citizen still has to confirm everything at the counter, which is the journey it exists to remove.
+- **The evaluation is self-authored and self-scored.** Scenarios, rules and expectations came from
+  one mental model, under a mock LLM. It catches regressions well (it has caught four real
+  defects); it cannot certify real-world correctness. An adversarial suite is planned and is
+  expected to fail on first run — if it passes immediately it was not adversarial.
+- **Retrieval quality is unmeasured.** The on-topic/off-topic similarity margin is 0.028 on a small
+  seeded corpus, there is no labelled relevance set, and no reranker. The calibration will not
+  survive a much larger corpus without the planned recall/nDCG measurement.
+- **The document checker is a mock.** Real OCR with calibrated confidence and an explicit abstain
+  band is the plan; shipping a guessing OCR would be worse than none.
+- **Nothing watches the sources.** Ingestion is manual; there is no scheduled re-fetch or change
+  detection yet, so `last_verified` ages silently. Automatic staleness decay and a source sentinel
+  are the highest-priority missing subsystems.
 
 ## What is deliberately not here
 

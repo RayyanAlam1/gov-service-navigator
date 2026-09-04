@@ -91,6 +91,19 @@ export function generateSessionToken(): string {
   return randomBytes(getConfig().SESSION_ID_BYTES).toString('base64url');
 }
 
+/**
+ * Opportunistic purge: expired sessions are deleted in the background each
+ * time a new session is created. `getSessionByToken` already refuses expired
+ * rows, so this is hygiene (the data leaves disk) rather than access control
+ * (which never depended on it). Fire-and-forget by design — a purge failure
+ * must never block a citizen from starting a session.
+ */
+function purgeOpportunistically(): void {
+  void purgeExpiredSessions().catch(() => {
+    /* logged at the db layer; never surfaced to the citizen */
+  });
+}
+
 export async function createSession(input: {
   language: Language;
   originalQuery: string | null;
@@ -110,6 +123,7 @@ export async function createSession(input: {
   );
 
   if (!row) throw new Error('failed to create session');
+  purgeOpportunistically();
   return toSession(row);
 }
 

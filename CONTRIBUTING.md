@@ -63,6 +63,21 @@ Explain why the change is needed, not what the diff shows. The diff already
 shows what changed; it cannot show what you learned that made the change
 necessary. Existing history is the style guide.
 
+## AI assistance in this repository
+
+Substantial portions of this codebase and its documentation were written with
+an AI coding assistant, directed and reviewed by the maintainer. Two things
+follow from that and are worth stating plainly:
+
+- The **architecture positions are held, not generated**: the one rule, the
+  deterministic orchestration, three-valued logic, and the refusal to invent
+  facts are design decisions this project is built around, and contributions
+  are reviewed against them regardless of how they were written.
+- The same standard applies to AI-assisted contributions from anyone else:
+  the machinery may propose, but a human owns what is merged, and no
+  government fact enters the repository from a model's memory — the
+  assistant's included.
+
 ## Reporting bugs
 
 Use the issue templates. For anything exploitable, follow

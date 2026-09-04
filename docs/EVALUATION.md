@@ -20,12 +20,19 @@ Exits non-zero if any target is missed. CI runs it on every push.
 | Required-document F1 | ≥ 90% | ratio |
 | Readiness classification | ≥ 90% | ratio |
 | Guardrail handling | ≥ 90% | ratio |
-| **Source grounding** | **100%** | **absolute** |
+| **Source link integrity** | **100%** | **absolute** |
 | **Unsupported claims** | **0** | **absolute** |
 
-The last two are absolute because averages hide the cases that matter. A 99% grounding rate means
-one citizen in a hundred is sent to the wrong office with confidence — and that citizen has no way
-of knowing they were the one.
+The last two are absolute because averages hide the cases that matter. A 99% link-integrity rate
+means one citizen in a hundred is shown an untraceable claim with confidence — and that citizen has
+no way of knowing they were the one.
+
+**Why "link integrity" and not "grounding":** this metric verifies that every plan element carries
+a `source_id` that resolves. It does not verify that the cited source *supports the claim* — a
+requirement row can point at a real official page and still list the wrong documents, and this
+check passes. The honest name keeps the metric from claiming more than it measures. The stronger
+metric, `source_support_rate` — human annotation of ~100 sampled claims against the exact cited
+spans — is planned and will be reported separately, starting from whatever number it actually is.
 
 ### Why document accuracy is F1, not recall
 
@@ -94,7 +101,7 @@ Scenario identification       100.0%   target 90.0%
 Required-document F1          100.0%   target 90.0%
 Readiness classification      100.0%   target 90.0%
 Guardrail handling            100.0%   target 90.0%
-Source grounding              100.0%   target 100.0%  (absolute)
+Source link integrity         100.0%   target 100.0%  (absolute)
 Unsupported claims                 0   target 0       (absolute)
 
 51/51 passed  ·  avg 4.5 questions  ·  avg 120ms
