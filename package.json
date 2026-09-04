@@ -62,7 +62,7 @@
     "pino-pretty": "^13.0.0",
     "postcss": "^8.5.1",
     "tailwindcss": "^3.4.17",
-    "tsx": "^4.19.2",
+    "tsx": "^4.23.13",
     "typescript": "^5.7.3",
     "vitest": "^2.1.8"
   },
