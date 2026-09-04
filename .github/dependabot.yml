@@ -63,16 +63,13 @@ updates:
           - tsx
           - '@types/*'
     ignore:
-      # Framework majors are planned upgrades, not weekly review items.
-      - dependency-name: next
-        update-types: [version-update:semver-major]
-      - dependency-name: react
-        update-types: [version-update:semver-major]
-      - dependency-name: react-dom
-        update-types: [version-update:semver-major]
-      - dependency-name: vitest
-        update-types: [version-update:semver-major]
-      - dependency-name: tailwindcss
+      # Every npm major is a planned migration, not a weekly review item.
+      # The first batches proved the per-package list unwinnable: zod 3->4,
+      # TypeScript 5->7, eslint 8->10 and a 0.2->0.5 pglite jump all arrived
+      # bundled with routine bumps, and every one failed CI. Patch and minor
+      # updates keep flowing automatically; majors are done deliberately,
+      # one at a time, with their migration guides open.
+      - dependency-name: '*'
         update-types: [version-update:semver-major]
     commit-message:
       prefix: deps
